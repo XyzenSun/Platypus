@@ -1,0 +1,34 @@
+{
+  "name": "justsearch-mcp",
+  "version": "0.0.1",
+  "type": "module",
+  "description": "Aggregated search MCP server (Brave, Exa, Tavily, Jina, SearXNG, Firecrawl)",
+  "bin": {
+    "justsearch-mcp": "./dist/index.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "tsup --watch",
+    "build": "tsup",
+    "test": "vitest run tests/unit",
+    "test:e2e": "vitest run tests/e2e",
+    "lint": "biome check .",
+    "format": "biome format --write .",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "undici": "^7.10.0",
+    "zod": "^3.25.0"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^1.9.4",
+    "@types/node": "^24.0.0",
+    "tsup": "^8.5.0",
+    "typescript": "^5.8.0",
+    "vitest": "^3.2.0"
+  },
+  "files": ["dist", "README.md"]
+}
