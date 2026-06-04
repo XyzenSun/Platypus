@@ -62,4 +62,37 @@ describe('rrfMerge', () => {
       expect(results[i]?.score).toBeGreaterThanOrEqual(results[i + 1]?.score);
     }
   });
+
+  it('content longest wins across providers', () => {
+    const url = 'https://example.com/page';
+    const short: RawProviderResult = { url, title: 'T', snippet: 'S', content: 'short' };
+    const long: RawProviderResult = {
+      url,
+      title: 'T',
+      snippet: 'S',
+      content: 'this is a much longer content body',
+    };
+    // Order matters for "first wins" bug detection — try both orderings
+    const map1 = new Map([
+      ['tavily', [short]],
+      ['exa', [long]],
+    ]);
+    const map2 = new Map([
+      ['tavily', [long]],
+      ['exa', [short]],
+    ]);
+    expect(rrfMerge(map1)[0]?.content).toBe('this is a much longer content body');
+    expect(rrfMerge(map2)[0]?.content).toBe('this is a much longer content body');
+  });
+
+  it('content non-empty preferred over empty', () => {
+    const url = 'https://example.com/page';
+    const withContent: RawProviderResult = { url, title: 'T', snippet: 'S', content: 'hello' };
+    const withoutContent: RawProviderResult = { url, title: 'T', snippet: 'S' };
+    const map = new Map([
+      ['tavily', [withoutContent]],
+      ['exa', [withContent]],
+    ]);
+    expect(rrfMerge(map)[0]?.content).toBe('hello');
+  });
 });

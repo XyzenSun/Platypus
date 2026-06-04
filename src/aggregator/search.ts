@@ -5,11 +5,15 @@ import type {
   SearchProvider,
   SearchResponse,
 } from '../providers/search-types.js';
-import { rrfMerge } from './rrf.js';
+import type { ScoringStrategy } from './scoring-types.js';
+import { RrfScoringStrategy } from './strategies/rrf.js';
+
+const defaultScoring = new RrfScoringStrategy();
 
 export async function aggregateSearch(
   params: NormalizedSearchParams,
   providers: SearchProvider[],
+  scoring: ScoringStrategy = defaultScoring,
 ): Promise<SearchResponse> {
   if (providers.length === 0) {
     throw new Error('No search channels available for the given configuration.');
@@ -43,6 +47,6 @@ export async function aggregateSearch(
     return { results: [], warnings, error: 'ALL_PROVIDERS_FAILED' };
   }
 
-  const results = rrfMerge(providerResults);
+  const results = scoring.merge(providerResults);
   return { results, warnings };
 }
