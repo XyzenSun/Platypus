@@ -54,6 +54,7 @@ describe.skipIf(!hasAnyKey)('e2e: fetch tool (real API)', () => {
     if (JINA_API_KEY) requested.push('jina');
     if (TAVILY_API_KEY) requested.push('tavily');
     if (EXA_API_KEY) requested.push('exa');
+    if (FIRECRAWL_API_KEY) requested.push('firecrawl');
 
     expect(requested.length).toBeGreaterThan(0);
 
@@ -133,4 +134,40 @@ describe.skipIf(!hasAnyKey)('e2e: fetch tool (real API)', () => {
     const sc = result.structuredContent as { error?: string };
     expect(typeof sc.error).toBe('string');
   });
+
+  it.skipIf(!FIRECRAWL_API_KEY)(
+    'fetches via default channel set (Firecrawl in defaults)',
+    async () => {
+      const targetUrl = 'https://example.com/';
+      const result = await client.callTool({
+        name: 'fetch',
+        arguments: {
+          urls: [targetUrl],
+          // no channels → use defaultFetchChannels (firecrawl + jina)
+        },
+      });
+      expect(result.isError).toBeFalsy();
+      const sc = result.structuredContent as {
+        results: Record<
+          string,
+          Record<
+            string,
+            { url: string; title?: string; content: string; format: string; fetchedAt: string }
+          >
+        >;
+      };
+      const bucket = sc.results[targetUrl];
+      expect(bucket).toBeDefined();
+      // Firecrawl must have produced content (jina may fail in sandbox).
+      const fc = bucket?.firecrawl;
+      expect(fc).toBeDefined();
+      if (fc) {
+        expect(fc.content.length).toBeGreaterThan(50);
+        const snippet = fc.content.slice(0, 200).replace(/\n/g, ' ');
+        process.stderr.write(
+          `\n[fetch-e2e] firecrawl (${fc.format}, ${fc.content.length} chars): ${snippet}\n`,
+        );
+      }
+    },
+  );
 });
