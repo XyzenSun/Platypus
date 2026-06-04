@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { aggregateSearch } from '../../src/aggregator/search.js';
 import type { ProviderRanked, ScoringStrategy } from '../../src/aggregator/scoring-types.js';
+import { aggregateSearch } from '../../src/aggregator/search.js';
 import type {
   NormalizedSearchParams,
   RawProviderResult,

@@ -13,6 +13,7 @@ export const PROVIDER_CAPABILITIES: Record<ProviderId, ProviderCapability> = {
   jina: { search: false, fetch: true, searchOptInOnly: false },
   searxng: { search: true, fetch: false, searchOptInOnly: false },
   firecrawl: { search: true, fetch: true, searchOptInOnly: true },
+  gemini: { search: true, fetch: false, searchOptInOnly: false },
 };
 
 // Default fetch channel order: Firecrawl > Jina (MVP1 defaults)

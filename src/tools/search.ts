@@ -1,21 +1,11 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { aggregateSearch } from '../aggregator/search.js';
 import type { Config } from '../config/types.js';
-import { ExaSearchAdapter } from '../providers/exa.js';
-import { buildRegistry } from '../providers/registry.js';
-import type { SearchProvider } from '../providers/search-types.js';
-import { TavilySearchAdapter } from '../providers/tavily.js';
+import { buildRegistry, getSearchProviders } from '../providers/registry.js';
 import { SearchInputSchema } from './schemas.js';
 
-function buildSearchProviders(config: Config): SearchProvider[] {
-  const providers: SearchProvider[] = [];
-  if (config.tavily) providers.push(new TavilySearchAdapter(config.tavily.apiKey));
-  if (config.exa) providers.push(new ExaSearchAdapter(config.exa.apiKey));
-  return providers;
-}
-
 export function registerSearchTool(server: McpServer, config: Config): void {
-  const allProviders = buildSearchProviders(config);
+  const allProviders = getSearchProviders(config);
   const registry = buildRegistry(config);
 
   server.registerTool(

@@ -6,9 +6,9 @@ import type {
   SearchResponse,
 } from '../providers/search-types.js';
 import type { ScoringStrategy } from './scoring-types.js';
-import { RrfScoringStrategy } from './strategies/rrf.js';
+import { GeminiBoostScoringStrategy } from './strategies/gemini-boost.js';
 
-const defaultScoring = new RrfScoringStrategy();
+const defaultScoring = new GeminiBoostScoringStrategy();
 
 export async function aggregateSearch(
   params: NormalizedSearchParams,

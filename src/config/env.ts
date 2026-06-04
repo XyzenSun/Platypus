@@ -9,6 +9,13 @@ export function loadConfig(): Config {
   if (process.env.JINA_API_KEY) config.jina = { apiKey: process.env.JINA_API_KEY };
   if (process.env.SEARXNG_BASE_URL) config.searxng = { baseUrl: process.env.SEARXNG_BASE_URL };
   if (process.env.FIRECRAWL_API_KEY) config.firecrawl = { apiKey: process.env.FIRECRAWL_API_KEY };
+  if (process.env.GEMINI_API_KEY) {
+    config.gemini = {
+      apiKey: process.env.GEMINI_API_KEY,
+      baseUrl: process.env.GEMINI_BASE_URL,
+      model: process.env.GEMINI_MODEL,
+    };
+  }
   if (process.env.AI_API_KEY) {
     const format = process.env.AI_FORMAT as 'openai' | 'anthropic' | 'gemini' | undefined;
     config.ai = {

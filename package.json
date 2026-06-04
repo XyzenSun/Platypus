@@ -19,6 +19,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@google/genai": "^2.8.0",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "undici": "^7.10.0",
     "zod": "^3.25.0"
