@@ -1,10 +1,10 @@
 {
-  "name": "justsearch-mcp",
+  "name": "platypus-mcp",
   "version": "0.0.1",
   "type": "module",
   "description": "Aggregated search MCP server (Brave, Exa, Tavily, Jina, SearXNG, Firecrawl)",
   "bin": {
-    "justsearch-mcp": "./dist/index.js"
+    "platypus-mcp": "./dist/index.js"
   },
   "engines": {
     "node": ">=20"

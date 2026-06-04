@@ -10,10 +10,12 @@ export function loadConfig(): Config {
   if (process.env.SEARXNG_BASE_URL) config.searxng = { baseUrl: process.env.SEARXNG_BASE_URL };
   if (process.env.FIRECRAWL_API_KEY) config.firecrawl = { apiKey: process.env.FIRECRAWL_API_KEY };
   if (process.env.AI_API_KEY) {
+    const format = process.env.AI_FORMAT as 'openai' | 'anthropic' | 'gemini' | undefined;
     config.ai = {
       apiKey: process.env.AI_API_KEY,
       baseUrl: process.env.AI_BASE_URL,
       model: process.env.AI_MODEL,
+      format: format ?? 'openai',
     };
   }
 

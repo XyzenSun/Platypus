@@ -5,7 +5,7 @@ import { registerListTool } from '../tools/list.js';
 import { registerSearchTool } from '../tools/search.js';
 
 export function createServer(config: Config): McpServer {
-  const server = new McpServer({ name: 'justsearch-mcp', version: '0.0.1' });
+  const server = new McpServer({ name: 'platypus-mcp', version: '0.0.1' });
   registerListTool(server, config);
   registerSearchTool(server);
   registerFetchTool(server);

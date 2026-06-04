@@ -7,5 +7,5 @@ export interface Config {
   jina?: { apiKey: string };
   searxng?: { baseUrl: string };
   firecrawl?: { apiKey: string };
-  ai?: { apiKey: string; baseUrl?: string; model?: string };
+  ai?: { apiKey: string; baseUrl?: string; model?: string; format: 'openai' | 'anthropic' | 'gemini' };
 }
