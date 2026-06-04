@@ -13,7 +13,7 @@ describe('buildRegistry', () => {
   });
 
   it('shows only tavily when only TAVILY_API_KEY is set', () => {
-    const config: Config = { tavily: { apiKey: 'tvly-test' } };
+    const config: Config = { tavily: { apiKey: 'test-key' } };
     const result = buildRegistry(config);
     expect(result.search).toEqual(['tavily']);
     expect(result.fetch).toEqual(['tavily']);
@@ -23,9 +23,9 @@ describe('buildRegistry', () => {
 
   it('tavily + exa + firecrawl: firecrawl is opt-in only in search', () => {
     const config: Config = {
-      tavily: { apiKey: 'tvly-test' },
-      exa: { apiKey: 'exa-test' },
-      firecrawl: { apiKey: 'fc-test' },
+      tavily: { apiKey: 'test-key' },
+      exa: { apiKey: 'test-key' },
+      firecrawl: { apiKey: 'test-key' },
     };
     const result = buildRegistry(config);
     // firecrawl is searchOptInOnly so excluded from defaultSearchChannels
@@ -41,14 +41,14 @@ describe('buildRegistry', () => {
   });
 
   it('jina is fetch-only', () => {
-    const config: Config = { jina: { apiKey: 'jina-test' } };
+    const config: Config = { jina: { apiKey: 'test-key' } };
     const result = buildRegistry(config);
     expect(result.search).toEqual([]);
     expect(result.fetch).toEqual(['jina']);
   });
 
   it('brave is search-only', () => {
-    const config: Config = { brave: { apiKey: 'brave-test' } };
+    const config: Config = { brave: { apiKey: 'test-key' } };
     const result = buildRegistry(config);
     expect(result.search).toEqual(['brave']);
     expect(result.fetch).toEqual([]);
@@ -56,9 +56,9 @@ describe('buildRegistry', () => {
 
   it('defaultFetchChannels prioritizes firecrawl then jina', () => {
     const config: Config = {
-      jina: { apiKey: 'jina-test' },
-      firecrawl: { apiKey: 'fc-test' },
-      tavily: { apiKey: 'tvly-test' },
+      jina: { apiKey: 'test-key' },
+      firecrawl: { apiKey: 'test-key' },
+      tavily: { apiKey: 'test-key' },
     };
     const result = buildRegistry(config);
     // firecrawl first, jina second, then tavily

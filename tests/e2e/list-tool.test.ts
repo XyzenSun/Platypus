@@ -22,7 +22,7 @@ describe('e2e: list tool', () => {
 
   beforeAll(async () => {
     execSync('npm run build', { cwd: ROOT, stdio: 'inherit' });
-    const spawned = spawnMcpServer({ TAVILY_API_KEY: 'tvly-test', EXA_API_KEY: 'exa-test' });
+    const spawned = spawnMcpServer({ TAVILY_API_KEY: 'test-key', EXA_API_KEY: 'test-key' });
     client = spawned.client;
     transport = spawned.transport;
     await client.connect(transport);

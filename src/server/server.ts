@@ -7,7 +7,7 @@ import { registerSearchTool } from '../tools/search.js';
 export function createServer(config: Config): McpServer {
   const server = new McpServer({ name: 'platypus-mcp', version: '0.0.1' });
   registerListTool(server, config);
-  registerSearchTool(server);
+  registerSearchTool(server, config);
   registerFetchTool(server);
   return server;
 }
