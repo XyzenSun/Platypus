@@ -1,4 +1,3 @@
-import { execSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
@@ -28,7 +27,6 @@ describe.skipIf(!hasKeys)('e2e: search tool (real API)', () => {
   let transport: StdioClientTransport;
 
   beforeAll(async () => {
-    execSync('npm run build', { cwd: ROOT, stdio: 'inherit' });
     transport = new StdioClientTransport({
       command: 'node',
       args: [path.join(ROOT, 'dist/index.js')],

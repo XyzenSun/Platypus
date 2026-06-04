@@ -1,4 +1,3 @@
-import { execSync } from 'node:child_process';
 import path from 'node:path';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
@@ -21,7 +20,6 @@ describe('e2e: list tool', () => {
   let transport: StdioClientTransport;
 
   beforeAll(async () => {
-    execSync('npm run build', { cwd: ROOT, stdio: 'inherit' });
     const spawned = spawnMcpServer({ TAVILY_API_KEY: 'test-key', EXA_API_KEY: 'test-key' });
     client = spawned.client;
     transport = spawned.transport;
