@@ -92,7 +92,7 @@ export class TavilySearchAdapter implements SearchProvider {
       };
 
       return data.results
-        .filter((r) => r.url)
+        .filter((r) => params.hasContent || Boolean(r.url))
         .map((r) => ({
           url: r.url,
           title: r.title,
