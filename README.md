@@ -40,10 +40,14 @@ node dist/index.js
 cp .env.example .env
 ```
 
+其中 `EXA_BASE_URL` 与 `TAVILY_BASE_URL` 是可选项，只填写根路径即可；未设置时会继续使用默认官方地址。
+
 | 变量 | 说明 |
 |------|------|
-| `TAVILY_API_KEY` | Tavily 搜索 |
+| `TAVILY_API_KEY` | Tavily 搜索 / 抓取 |
+| `TAVILY_BASE_URL` | Tavily API 根路径，可选，例如 `https://api.tavily.com` |
 | `EXA_API_KEY` | Exa 搜索 / 抓取 |
+| `EXA_BASE_URL` | Exa API 根路径，可选，例如 `https://api.exa.ai` |
 | `GEMINI_API_KEY` | Gemini AI 搜索 |
 | `JINA_API_KEY` | Jina Reader 抓取 |
 | `FIRECRAWL_API_KEY` | Firecrawl 抓取 |
