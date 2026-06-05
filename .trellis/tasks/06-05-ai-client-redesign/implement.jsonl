@@ -1,0 +1,4 @@
+{"file": ".trellis/spec/backend/error-handling.md", "reason": "ProviderError usage, withRetry pattern, classifyHttpStatus — must follow when wrapping SDK errors"}
+{"file": ".trellis/spec/backend/provider-conventions.md", "reason": "Adapter pattern conventions — constructor shape, withRetry, AbortSignal usage"}
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "TypeScript strict rules, import .js extension, no any, no console.log"}
+{"file": ".trellis/tasks/06-05-ai-client-redesign/prd.md", "reason": "Full requirements: new AIClient interface, three implementations, GeminiSearchAdapter update"}
