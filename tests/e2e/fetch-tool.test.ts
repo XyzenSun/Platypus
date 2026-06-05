@@ -143,7 +143,7 @@ describe.skipIf(!hasAnyKey)('e2e: fetch tool (real API)', () => {
         name: 'fetch',
         arguments: {
           urls: [targetUrl],
-          // no channels → use defaultFetchChannels (firecrawl + jina)
+          // no channels → use default fetch ordering (firecrawl + jina first)
         },
       });
       expect(result.isError).toBeFalsy();

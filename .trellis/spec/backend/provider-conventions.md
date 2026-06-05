@@ -38,21 +38,21 @@ Capabilities are declared in `src/providers/types.ts`:
 
 ```typescript
 export const PROVIDER_CAPABILITIES: Record<ProviderId, ProviderCapability> = {
-  tavily:    { search: true,  fetch: true,  searchOptInOnly: false },
-  exa:       { search: true,  fetch: true,  searchOptInOnly: false },
-  gemini:    { search: true,  fetch: false, searchOptInOnly: false },
-  firecrawl: { search: true,  fetch: true,  searchOptInOnly: true  },
-  jina:      { search: false, fetch: true,  searchOptInOnly: false },
-  brave:     { search: true,  fetch: false, searchOptInOnly: false },
-  searxng:   { search: true,  fetch: false, searchOptInOnly: false },
+  tavily:    { search: true,  fetch: true  },
+  exa:       { search: true,  fetch: true  },
+  gemini:    { search: true,  fetch: false },
+  firecrawl: { search: true,  fetch: true  },
+  jina:      { search: false, fetch: true  },
+  brave:     { search: true,  fetch: false },
+  searxng:   { search: true,  fetch: false },
 };
 ```
 
-`searchOptInOnly: true` means the provider is excluded from default search channels and only used when explicitly named in the `channels` parameter.
+All configured providers with `search: true` participate in the default search channel set unless the caller overrides `channels`.
 
 ## Default Fetch Priority
 
-`DEFAULT_FETCH_PRIORITY = ['firecrawl', 'jina']` (`src/providers/types.ts:20`). Providers in this list are placed first in `defaultFetchChannels`.
+`DEFAULT_FETCH_PRIORITY = ['firecrawl', 'jina']` (`src/providers/types.ts:19`). When fetch `channels` are omitted, configured providers in this list are attempted first, followed by the remaining configured fetch providers.
 
 ## Registration
 

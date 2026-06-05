@@ -3,6 +3,7 @@ import { aggregateFetch } from '../aggregator/fetch.js';
 import type { Config } from '../config/types.js';
 import type { FetchProvider } from '../providers/fetch-types.js';
 import { buildRegistry, getFetchProviders } from '../providers/registry.js';
+import { DEFAULT_FETCH_PRIORITY } from '../providers/types.js';
 import { FetchInputSchema } from './schemas.js';
 
 export function registerFetchTool(server: McpServer, config: Config): void {
@@ -26,11 +27,14 @@ export function registerFetchTool(server: McpServer, config: Config): void {
     async (input) => {
       const params = FetchInputSchema.parse(input);
 
-      // Resolve channel set: explicit channels override defaults; default = registry.defaultFetchChannels.
+      // Resolve channel set: explicit channels override defaults; default = prioritized configured fetch providers.
       const channelIds: string[] =
         params.channels && params.channels.length > 0
           ? params.channels
-          : registry.defaultFetchChannels;
+          : [
+              ...DEFAULT_FETCH_PRIORITY.filter((id) => registry.fetch.includes(id)),
+              ...registry.fetch.filter((id) => !DEFAULT_FETCH_PRIORITY.includes(id)),
+            ];
 
       // Filter to providers that are both configured AND in the requested channel set.
       const providers: FetchProvider[] = allProviders.filter((p) => channelIds.includes(p.id));

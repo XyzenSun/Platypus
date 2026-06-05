@@ -42,9 +42,6 @@ describe('e2e: list tool', () => {
     const sc = result.structuredContent as Record<string, unknown>;
     expect(Array.isArray(sc.search)).toBe(true);
     expect(Array.isArray(sc.fetch)).toBe(true);
-    expect(Array.isArray(sc.defaultSearchChannels)).toBe(true);
-    expect(Array.isArray(sc.defaultFetchChannels)).toBe(true);
-    expect(Array.isArray(sc.optInOnly)).toBe(true);
     // with TAVILY_API_KEY + EXA_API_KEY, both should appear in search
     expect(sc.search).toContain('tavily');
     expect(sc.search).toContain('exa');

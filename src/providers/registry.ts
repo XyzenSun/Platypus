@@ -9,15 +9,12 @@ import { JinaFetchAdapter } from './jina-fetch.js';
 import type { SearchProvider } from './search-types.js';
 import { TavilyFetchAdapter } from './tavily-fetch.js';
 import { TavilySearchAdapter } from './tavily.js';
-import { DEFAULT_FETCH_PRIORITY, PROVIDER_CAPABILITIES } from './types.js';
+import { PROVIDER_CAPABILITIES } from './types.js';
 
 export interface ListResult {
   [key: string]: unknown;
   search: ProviderId[];
   fetch: ProviderId[];
-  defaultSearchChannels: ProviderId[];
-  defaultFetchChannels: ProviderId[];
-  optInOnly: ProviderId[];
 }
 
 export function buildRegistry(config: Config): ListResult {
@@ -36,23 +33,9 @@ export function buildRegistry(config: Config): ListResult {
   const searchProviders = configured.filter((p) => PROVIDER_CAPABILITIES[p].search);
   const fetchProviders = configured.filter((p) => PROVIDER_CAPABILITIES[p].fetch);
 
-  const optInOnly = searchProviders.filter((p) => PROVIDER_CAPABILITIES[p].searchOptInOnly);
-  const defaultSearchChannels = searchProviders.filter(
-    (p) => !PROVIDER_CAPABILITIES[p].searchOptInOnly,
-  );
-
-  // Default fetch: priority order (firecrawl > jina), then others
-  const defaultFetchChannels = [
-    ...DEFAULT_FETCH_PRIORITY.filter((p) => fetchProviders.includes(p)),
-    ...fetchProviders.filter((p) => !DEFAULT_FETCH_PRIORITY.includes(p)),
-  ];
-
   return {
     search: searchProviders,
     fetch: fetchProviders,
-    defaultSearchChannels,
-    defaultFetchChannels,
-    optInOnly,
   };
 }
 

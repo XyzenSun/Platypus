@@ -7,7 +7,13 @@ export const SearchInputSchema = z.object({
   mode: z.enum(['default', 'high']).default('default').describe('Quality preset'),
   channels: z.array(z.string()).optional().describe('Override provider channels'),
   hasContent: z.boolean().default(true).describe('Include full page content per result'),
-  perChannelMaxResults: z.number().int().min(1).max(50).default(10).describe('Max results per channel'),
+  perChannelMaxResults: z
+    .number()
+    .int()
+    .min(1)
+    .max(50)
+    .default(10)
+    .describe('Max results per channel'),
   includeDomains: z.string().optional().describe('Comma-separated domain whitelist'),
   excludeDomains: z.string().optional().describe('Comma-separated domain blacklist'),
   startDate: z
@@ -44,7 +50,7 @@ export const FetchInputSchema = z.object({
     .array(z.string())
     .optional()
     .describe(
-      'Override fetch channels (subset of [firecrawl, jina, tavily, exa]). Omit for defaultFetchChannels.',
+      'Override fetch channels (subset of [firecrawl, jina, tavily, exa]). Omit to use the default fetch ordering.',
     ),
   format: z
     .enum(['markdown', 'text'])

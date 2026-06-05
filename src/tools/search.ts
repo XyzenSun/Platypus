@@ -30,10 +30,10 @@ export function registerSearchTool(server: McpServer, config: Config): void {
       if (params.channels && params.channels.length > 0) {
         channelIds = params.channels;
       } else if (params.mode === 'high') {
-        // high falls back to default channels; AI synthesis stub
-        channelIds = registry.defaultSearchChannels;
+        // high falls back to all configured search providers; AI synthesis stub
+        channelIds = registry.search;
       } else {
-        channelIds = registry.defaultSearchChannels;
+        channelIds = registry.search;
       }
 
       const providers = allProviders.filter((p) => channelIds.includes(p.id));

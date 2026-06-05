@@ -2,7 +2,8 @@ import type { GeminiAIClient } from '../lib/ai-clients/gemini.js';
 import type { Tool } from '../lib/ai-clients/types.js';
 import type { NormalizedSearchParams, RawProviderResult, SearchProvider } from './search-types.js';
 
-export const GEMINI_SUMMARY_URL = 'gemini://Gemini search has no persistent URL, Do not crawl this link';
+export const GEMINI_SUMMARY_URL =
+  'gemini://Gemini search has no persistent URL, Do not crawl this link';
 
 const googleSearchTool: Tool = {
   name: 'googleSearch',

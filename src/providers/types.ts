@@ -3,17 +3,16 @@ import type { ProviderId } from '../config/types.js';
 export interface ProviderCapability {
   search: boolean;
   fetch: boolean;
-  searchOptInOnly: boolean;
 }
 
 export const PROVIDER_CAPABILITIES: Record<ProviderId, ProviderCapability> = {
-  tavily: { search: true, fetch: true, searchOptInOnly: false },
-  exa: { search: true, fetch: true, searchOptInOnly: false },
-  brave: { search: true, fetch: false, searchOptInOnly: false },
-  jina: { search: false, fetch: true, searchOptInOnly: false },
-  searxng: { search: true, fetch: false, searchOptInOnly: false },
-  firecrawl: { search: true, fetch: true, searchOptInOnly: true },
-  gemini: { search: true, fetch: false, searchOptInOnly: false },
+  tavily: { search: true, fetch: true },
+  exa: { search: true, fetch: true },
+  brave: { search: true, fetch: false },
+  jina: { search: false, fetch: true },
+  searxng: { search: true, fetch: false },
+  firecrawl: { search: true, fetch: true },
+  gemini: { search: true, fetch: false },
 };
 
 // Default fetch channel order: Firecrawl > Jina (MVP1 defaults)
