@@ -84,7 +84,7 @@ export class ExaSearchAdapter implements SearchProvider {
       };
 
       return data.results
-        .filter((r) => r.url && (!params.hasContent || r.title))
+        .filter((r) => r.url)
         .map((r) => ({
           url: r.url,
           title: r.title,
