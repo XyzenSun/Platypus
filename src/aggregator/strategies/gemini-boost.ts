@@ -37,7 +37,7 @@ export class GeminiBoostScoringStrategy implements ScoringStrategy {
       gemini.score = 0.5;
     } else {
       const sum = others.reduce((s, r) => s + r.score, 0);
-      gemini.score = sum / others.length;
+      gemini.score = (sum / others.length)*1.5;
     }
 
     const resorted = [...others, gemini].sort((a, b) => b.score - a.score);
