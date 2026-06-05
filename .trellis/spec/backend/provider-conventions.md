@@ -32,6 +32,34 @@ Key rules for every adapter:
 - On non-OK response: call `classifyHttpStatus(res.status)` and throw `ProviderError`.
 - Return `RawProviderResult[]` (search) or `RawFetchResult` (fetch) — no extra fields.
 
+### Convention: Adapter vs aggregator identity responsibilities
+
+**What**: Search adapters only map upstream payloads into `RawProviderResult`. They do not generate dedup keys, fallback IDs, or final `SearchResult.id` values.
+
+**Why**: Identity semantics must stay centralized in the aggregator so all providers participate in the same dedup contract. If adapters generate identity independently, dedup behavior drifts and output `id` semantics split across channels.
+
+**Example**:
+
+```typescript
+// Adapter: keep upstream mapping only
+return data.results
+  .filter((r) => params.hasContent || Boolean(r.url))
+  .map((r) => ({
+    url: r.url,
+    title: r.title,
+    content: params.hasContent ? (r.text ?? undefined) : undefined,
+  }));
+```
+
+```typescript
+// Aggregator: decide identity semantics once for every provider
+const identity = result.url
+  ? normalizeUrl(result.url)
+  : `missing-url-${provider}-${hash}`;
+```
+
+**Related**: `.trellis/spec/backend/scoring-strategies.md`.
+
 ## Provider Capabilities
 
 Capabilities are declared in `src/providers/types.ts`:

@@ -32,6 +32,118 @@ score(d) = Σ_provider  1 / (k + rank_p(d))     k = 60
 - `sources` field lists every provider that returned the canonical URL.
 - `publishedDate`: first non-empty wins.
 
+## Scenario: Search result identity when URL is missing
+
+### 1. Scope / Trigger
+- Trigger: search result response contract changed at the aggregator boundary because `SearchResult.id` must remain stable even when a provider returns an empty `url`.
+- Applies to: `RrfScoringStrategy.merge()` and every caller consuming aggregated `SearchResult[]`.
+- Does not apply to: fetch providers or Gemini's sentinel URL flow.
+
+### 2. Signatures
+- Aggregator input:
+
+```typescript
+type ProviderRanked = Map<string, RawProviderResult[]>;
+```
+
+- Search provider payload:
+
+```typescript
+interface RawProviderResult {
+  url: string;
+  title: string;
+  content?: string;
+  publishedDate?: string;
+}
+```
+
+- Aggregator output:
+
+```typescript
+interface SearchResult {
+  id: string;
+  title: string;
+  url: string;
+  content?: string;
+  score: number;
+  rank: number;
+  sources: string[];
+  publishedDate?: string;
+}
+```
+
+### 3. Contracts
+- Request-side contract:
+  - Search adapters may return `url: ''` only when `hasContent=true` and the upstream returned useful content without a URL.
+  - Search adapters must continue filtering empty-URL records when `hasContent=false`.
+- Response-side contract:
+  - If `url` is non-empty, `SearchResult.id` must equal `normalizeUrl(url)`.
+  - If `url` is empty, `SearchResult.id` must equal `missing-url-<provider>-<hash>`.
+  - `<hash>` must be generated with Node built-in `crypto.createHash('sha256')` over `provider + '\0' + titleOrNull + '\0' + contentOrNull`.
+  - Missing `title` and missing `content` must participate as the literal semantic value `null` when building the hash input.
+  - The RRF internal dedup key and final `SearchResult.id` must be the same value.
+- Environment contract:
+  - No new env keys.
+  - No new dependencies.
+
+### 4. Validation & Error Matrix
+| Condition | Behavior |
+|---|---|
+| `url` is non-empty | Use canonical URL as dedup key and `SearchResult.id` |
+| `url` is empty and `hasContent=true` | Keep the result, derive fallback identity, dedup on that identity |
+| `url` is empty and `hasContent=false` | Adapter filters the record before aggregation |
+| `title` missing/empty | Treat as `null` in fallback hash input |
+| `content` missing/empty | Treat as `null` in fallback hash input |
+| Same provider + same missing-url hash input | Results may merge as an accepted degenerate case |
+| Different content/title under same provider with empty URL | Must not merge |
+
+### 5. Good / Base / Bad Cases
+- Good:
+  - Exa returns two empty-URL results with different `content`; RRF outputs two results with different `id` values.
+- Base:
+  - Tavily returns one empty-URL result with `title=''` and `content` present; RRF returns `id=missing-url-tavily-<hash>` and preserves `url=''`.
+- Bad:
+  - RRF uses `normalizeUrl(r.url)` directly for every record; all empty-URL results collapse to `''` and merge incorrectly.
+
+### 6. Tests Required
+- Unit: `tests/unit/rrf.test.ts`
+  - assert canonical URL dedup still works
+  - assert missing-URL fallback id format is used
+  - assert dedup key equals final `SearchResult.id`
+  - assert different empty-URL results do not merge
+  - assert missing `title` / `content` are treated as `null`
+  - assert accepted degenerate merge behavior for same provider + all-missing-equivalent payloads
+- Unit: `tests/unit/search-adapters.test.ts`
+  - assert Exa/Tavily filter empty URLs when `hasContent=false`
+  - assert Exa/Tavily keep empty URLs when `hasContent=true`
+  - assert adapters do not generate identity fields themselves
+
+### 7. Wrong vs Correct
+#### Wrong
+```typescript
+const canonical = normalizeUrl(r.url);
+const existing = merged.get(canonical);
+...
+id: canonical,
+```
+
+#### Correct
+```typescript
+const identity = r.url
+  ? normalizeUrl(r.url)
+  : `missing-url-${provider}-${createHash('sha256')
+      .update(provider)
+      .update('\0')
+      .update(r.title || 'null')
+      .update('\0')
+      .update(r.content || 'null')
+      .digest('hex')}`;
+
+const existing = merged.get(identity);
+...
+id: identity,
+```
+
 ## GeminiBoostScoringStrategy (active default)
 
 `src/aggregator/strategies/gemini-boost.ts` — wraps `RrfScoringStrategy` and applies a post-merge score adjustment to Gemini results. This is the actual default passed to `aggregateSearch`.
