@@ -4,15 +4,23 @@ import type { FetchProvider, NormalizedFetchParams, RawFetchResult } from './fet
 
 const EXA_CONTENTS_URL = 'https://api.exa.ai/contents';
 
+function buildExaContentsUrl(baseUrl?: string): string {
+  if (!baseUrl) return EXA_CONTENTS_URL;
+  return `${baseUrl.replace(/\/+$/, '')}/contents`;
+}
+
 export class ExaFetchAdapter implements FetchProvider {
   readonly id = 'exa';
 
-  constructor(private readonly apiKey: string) {}
+  constructor(
+    private readonly apiKey: string,
+    private readonly baseUrl?: string,
+  ) {}
 
   async fetch(url: string, params: NormalizedFetchParams): Promise<RawFetchResult> {
     return withRetry(async () => {
       const signal = AbortSignal.timeout(params.timeoutMs);
-      const res = await globalThis.fetch(EXA_CONTENTS_URL, {
+      const res = await globalThis.fetch(buildExaContentsUrl(this.baseUrl), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

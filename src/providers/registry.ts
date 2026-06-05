@@ -77,8 +77,11 @@ function isConfigured(provider: ProviderId, config: Config): boolean {
 
 export function getSearchProviders(config: Config): SearchProvider[] {
   const providers: SearchProvider[] = [];
-  if (config.tavily?.apiKey) providers.push(new TavilySearchAdapter(config.tavily.apiKey));
-  if (config.exa?.apiKey) providers.push(new ExaSearchAdapter(config.exa.apiKey));
+  if (config.tavily?.apiKey) {
+    providers.push(new TavilySearchAdapter(config.tavily.apiKey, config.tavily.baseUrl));
+  }
+  if (config.exa?.apiKey)
+    providers.push(new ExaSearchAdapter(config.exa.apiKey, config.exa.baseUrl));
   if (config.gemini?.apiKey) {
     providers.push(
       new GeminiSearchAdapter(
@@ -97,7 +100,10 @@ export function getFetchProviders(config: Config): FetchProvider[] {
   const providers: FetchProvider[] = [];
   if (config.firecrawl?.apiKey) providers.push(new FirecrawlFetchAdapter(config.firecrawl.apiKey));
   if (config.jina?.apiKey) providers.push(new JinaFetchAdapter(config.jina.apiKey));
-  if (config.tavily?.apiKey) providers.push(new TavilyFetchAdapter(config.tavily.apiKey));
-  if (config.exa?.apiKey) providers.push(new ExaFetchAdapter(config.exa.apiKey));
+  if (config.tavily?.apiKey) {
+    providers.push(new TavilyFetchAdapter(config.tavily.apiKey, config.tavily.baseUrl));
+  }
+  if (config.exa?.apiKey)
+    providers.push(new ExaFetchAdapter(config.exa.apiKey, config.exa.baseUrl));
   return providers;
 }

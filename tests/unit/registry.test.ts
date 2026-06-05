@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import type { Config } from '../../src/config/types.js';
-import { buildRegistry, getSearchProviders } from '../../src/providers/registry.js';
+import {
+  buildRegistry,
+  getFetchProviders,
+  getSearchProviders,
+} from '../../src/providers/registry.js';
 
 describe('buildRegistry', () => {
   it('returns empty arrays when no providers configured', () => {
@@ -101,9 +105,21 @@ describe('buildRegistry', () => {
     expect(ids).toContain('gemini');
   });
 
-  it('getSearchProviders omits gemini when not configured', () => {
-    const config: Config = { tavily: { apiKey: 't' } };
+  it('getSearchProviders includes tavily and exa when baseUrl is configured', () => {
+    const config: Config = {
+      tavily: { apiKey: 't', baseUrl: 'https://proxy.example.com/tavily' },
+      exa: { apiKey: 'e', baseUrl: 'https://proxy.example.com/exa' },
+    };
     const providers = getSearchProviders(config);
-    expect(providers.map((p) => p.id)).not.toContain('gemini');
+    expect(providers.map((p) => p.id)).toEqual(['tavily', 'exa']);
+  });
+
+  it('getFetchProviders includes tavily and exa when baseUrl is configured', () => {
+    const config: Config = {
+      tavily: { apiKey: 't', baseUrl: 'https://proxy.example.com/tavily' },
+      exa: { apiKey: 'e', baseUrl: 'https://proxy.example.com/exa' },
+    };
+    const providers = getFetchProviders(config);
+    expect(providers.map((p) => p.id)).toEqual(['tavily', 'exa']);
   });
 });

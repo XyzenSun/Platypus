@@ -5,6 +5,11 @@ import type { NormalizedSearchParams, RawProviderResult, SearchProvider } from '
 const EXA_SEARCH_URL = 'https://api.exa.ai/search';
 const EXA_MAX_NUM_RESULTS = 100;
 
+function buildExaSearchUrl(baseUrl?: string): string {
+  if (!baseUrl) return EXA_SEARCH_URL;
+  return `${baseUrl.replace(/\/+$/, '')}/search`;
+}
+
 const CATEGORY_MAP: Record<string, string> = {
   news: 'news',
   company: 'company',
@@ -25,7 +30,10 @@ const TYPE_MAP: Record<string, string> = {
 export class ExaSearchAdapter implements SearchProvider {
   readonly id = 'exa';
 
-  constructor(private readonly apiKey: string) {}
+  constructor(
+    private readonly apiKey: string,
+    private readonly baseUrl?: string,
+  ) {}
 
   async search(params: NormalizedSearchParams): Promise<RawProviderResult[]> {
     const isPersonOrCompany = params.topic === 'company' || params.topic === 'people';
@@ -63,7 +71,7 @@ export class ExaSearchAdapter implements SearchProvider {
 
     return withRetry(async () => {
       const signal = AbortSignal.timeout(params.timeoutMs);
-      const res = await fetch(EXA_SEARCH_URL, {
+      const res = await fetch(buildExaSearchUrl(this.baseUrl), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

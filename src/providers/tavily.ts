@@ -4,6 +4,11 @@ import type { NormalizedSearchParams, RawProviderResult, SearchProvider } from '
 
 const TAVILY_SEARCH_URL = 'https://api.tavily.com/search';
 
+function buildTavilySearchUrl(baseUrl?: string): string {
+  if (!baseUrl) return TAVILY_SEARCH_URL;
+  return `${baseUrl.replace(/\/+$/, '')}/search`;
+}
+
 const TOPIC_MAP: Record<string, string> = {
   general: 'general',
   news: 'news',
@@ -19,7 +24,10 @@ const DEPTH_MAP: Record<string, string> = {
 export class TavilySearchAdapter implements SearchProvider {
   readonly id = 'tavily';
 
-  constructor(private readonly apiKey: string) {}
+  constructor(
+    private readonly apiKey: string,
+    private readonly baseUrl?: string,
+  ) {}
 
   async search(params: NormalizedSearchParams): Promise<RawProviderResult[]> {
     const body: Record<string, unknown> = {
@@ -51,7 +59,7 @@ export class TavilySearchAdapter implements SearchProvider {
 
     return withRetry(async () => {
       const signal = AbortSignal.timeout(params.timeoutMs);
-      const res = await fetch(TAVILY_SEARCH_URL, {
+      const res = await fetch(buildTavilySearchUrl(this.baseUrl), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

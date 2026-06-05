@@ -4,15 +4,23 @@ import type { FetchProvider, NormalizedFetchParams, RawFetchResult } from './fet
 
 const TAVILY_EXTRACT_URL = 'https://api.tavily.com/extract';
 
+function buildTavilyExtractUrl(baseUrl?: string): string {
+  if (!baseUrl) return TAVILY_EXTRACT_URL;
+  return `${baseUrl.replace(/\/+$/, '')}/extract`;
+}
+
 export class TavilyFetchAdapter implements FetchProvider {
   readonly id = 'tavily';
 
-  constructor(private readonly apiKey: string) {}
+  constructor(
+    private readonly apiKey: string,
+    private readonly baseUrl?: string,
+  ) {}
 
   async fetch(url: string, params: NormalizedFetchParams): Promise<RawFetchResult> {
     return withRetry(async () => {
       const signal = AbortSignal.timeout(params.timeoutMs);
-      const res = await globalThis.fetch(TAVILY_EXTRACT_URL, {
+      const res = await globalThis.fetch(buildTavilyExtractUrl(this.baseUrl), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
