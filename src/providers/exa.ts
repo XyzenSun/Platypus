@@ -31,7 +31,7 @@ export class ExaSearchAdapter implements SearchProvider {
 
     const body: Record<string, unknown> = {
       query: params.query,
-      numResults: params.numResults,
+      numResults: params.perChannelMaxResults,
       type: TYPE_MAP[params.searchDepth] ?? 'auto',
     };
 

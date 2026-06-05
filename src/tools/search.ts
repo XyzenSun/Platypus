@@ -63,7 +63,7 @@ export function registerSearchTool(server: McpServer, config: Config): void {
             mode: params.mode,
             channels: params.channels,
             hasContent: params.hasContent,
-            numResults: params.numResults,
+            perChannelMaxResults: params.perChannelMaxResults,
             includeDomains: params.includeDomains,
             excludeDomains: params.excludeDomains,
             startDate: params.startDate,

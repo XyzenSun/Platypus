@@ -27,7 +27,7 @@ export interface NormalizedSearchParams {
   mode: 'default' | 'high';
   channels?: string[];
   hasContent: boolean;
-  numResults: number;
+  perChannelMaxResults: number;
   includeDomains?: string;
   excludeDomains?: string;
   startDate?: string;

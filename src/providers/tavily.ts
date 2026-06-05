@@ -24,7 +24,7 @@ export class TavilySearchAdapter implements SearchProvider {
   async search(params: NormalizedSearchParams): Promise<RawProviderResult[]> {
     const body: Record<string, unknown> = {
       query: params.query,
-      max_results: Math.min(params.numResults, 20),
+      max_results: Math.min(params.perChannelMaxResults, 20),
       search_depth: DEPTH_MAP[params.searchDepth] ?? 'basic',
       include_images: params.includeImages,
     };

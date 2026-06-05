@@ -45,7 +45,7 @@ describe.skipIf(!hasKeys)('e2e: search tool (real API)', () => {
       name: 'search',
       arguments: {
         query: 'TypeScript best practices 2025',
-        numResults: 3,
+        perChannelMaxResults: 3,
         hasContent: false,
       },
     });

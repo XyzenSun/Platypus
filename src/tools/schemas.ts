@@ -7,7 +7,7 @@ export const SearchInputSchema = z.object({
   mode: z.enum(['default', 'high']).default('default').describe('Quality preset'),
   channels: z.array(z.string()).optional().describe('Override provider channels'),
   hasContent: z.boolean().default(true).describe('Include full page content per result'),
-  numResults: z.number().int().min(1).max(50).default(10).describe('Max results per provider'),
+  perChannelMaxResults: z.number().int().min(1).max(50).default(10).describe('Max results per channel'),
   includeDomains: z.string().optional().describe('Comma-separated domain whitelist'),
   excludeDomains: z.string().optional().describe('Comma-separated domain blacklist'),
   startDate: z

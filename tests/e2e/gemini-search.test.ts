@@ -101,7 +101,7 @@ describe.skipIf(!GEMINI_API_KEY)('e2e: gemini search (real API)', () => {
           query: 'Who won Euro 2024?',
           channels: ['tavily', 'gemini'],
           hasContent: false,
-          numResults: 5,
+          perChannelMaxResults: 5,
           timeoutMs: 60000,
         },
       });

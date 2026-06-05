@@ -10,7 +10,7 @@ import type {
 
 const params: NormalizedSearchParams = {
   query: 'foo',
-  numResults: 10,
+  perChannelMaxResults: 10,
   hasContent: false,
   topic: 'general',
   searchDepth: 'balanced',
