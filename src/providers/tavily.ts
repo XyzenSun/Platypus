@@ -1,6 +1,12 @@
 import { ProviderError, classifyHttpStatus } from '../lib/errors.js';
 import { withRetry } from '../lib/retry.js';
-import type { NormalizedSearchParams, RawProviderResult, SearchProvider } from './search-types.js';
+import {
+  CompiledSearchProvider,
+  appendLanguageIfNeeded,
+  appendRegionIfNeeded,
+  buildCapabilityNote,
+} from './search-provider-utils.js';
+import type { ProviderSearchParams, RawProviderResult } from './search-types.js';
 
 const TAVILY_SEARCH_URL = 'https://api.tavily.com/search';
 
@@ -9,53 +15,76 @@ function buildTavilySearchUrl(baseUrl?: string): string {
   return `${baseUrl.replace(/\/+$/, '')}/search`;
 }
 
-const TOPIC_MAP: Record<string, string> = {
-  general: 'general',
-  news: 'news',
-  finance: 'finance',
-};
+function mapTopic(topic: ProviderSearchParams['topic']): string {
+  if (topic === 'news') return 'news';
+  if (topic === 'finance') return 'finance';
+  return 'general';
+}
 
-const DEPTH_MAP: Record<string, string> = {
-  fast: 'fast',
-  balanced: 'basic',
-  deep: 'advanced',
-};
+function mapDepth(searchEffort: ProviderSearchParams['searchEffort']): string {
+  if (searchEffort === 'low') return 'fast';
+  if (searchEffort === 'high') return 'advanced';
+  return 'basic';
+}
 
-export class TavilySearchAdapter implements SearchProvider {
+export class TavilySearchAdapter extends CompiledSearchProvider {
   readonly id = 'tavily';
 
   constructor(
     private readonly apiKey: string,
     private readonly baseUrl?: string,
-  ) {}
+  ) {
+    super();
+  }
 
-  async search(params: NormalizedSearchParams): Promise<RawProviderResult[]> {
+  protected buildCapabilityNote(
+    params: ProviderSearchParams,
+  ): ReturnType<typeof buildCapabilityNote> {
+    const rewrittenFields = [
+      params.language ? 'language' : undefined,
+      params.region ? 'region' : undefined,
+    ].filter((value): value is string => Boolean(value));
+    return buildCapabilityNote(this.id, {
+      nativeFields: [
+        'query',
+        'hasContent',
+        'perChannelMaxResults',
+        'includeDomains',
+        'excludeDomains',
+        'publishedAfter',
+        'publishedBefore',
+        'topic',
+      ],
+      rewrittenFields,
+      notes: ['searchEffort compiles to search_depth.'],
+    });
+  }
+
+  protected async execute(params: ProviderSearchParams): Promise<RawProviderResult[]> {
+    let query = params.query;
+    query = appendLanguageIfNeeded(query, params.language);
+    query = appendRegionIfNeeded(query, params.region);
+
     const body: Record<string, unknown> = {
-      query: params.query,
+      query,
       max_results: Math.min(params.perChannelMaxResults, 20),
-      search_depth: DEPTH_MAP[params.searchDepth] ?? 'basic',
-      include_images: params.includeImages,
+      search_depth: mapDepth(params.searchEffort),
+      topic: mapTopic(params.topic),
     };
 
-    if (params.hasContent) body.include_raw_content = 'markdown';
-
-    const topic = TOPIC_MAP[params.topic];
-    if (topic) body.topic = topic;
-
-    if (params.includeDomains) {
+    if (params.hasContent) body.include_raw_content = true;
+    if (params.includeDomains)
       body.include_domains = params.includeDomains
         .split(',')
         .map((d) => d.trim())
         .filter(Boolean);
-    }
-    if (params.excludeDomains) {
+    if (params.excludeDomains)
       body.exclude_domains = params.excludeDomains
         .split(',')
         .map((d) => d.trim())
         .filter(Boolean);
-    }
-    if (params.startDate) body.start_date = params.startDate;
-    if (params.endDate) body.end_date = params.endDate;
+    if (params.publishedAfter) body.start_date = params.publishedAfter;
+    if (params.publishedBefore) body.end_date = params.publishedBefore;
 
     return withRetry(async () => {
       const signal = AbortSignal.timeout(params.timeoutMs);
@@ -72,13 +101,7 @@ export class TavilySearchAdapter implements SearchProvider {
       if (!res.ok) {
         const category = classifyHttpStatus(res.status);
         const text = await res.text().catch(() => '');
-        const err = new ProviderError(
-          'tavily',
-          category,
-          String(res.status),
-          text || res.statusText,
-        );
-        throw err;
+        throw new ProviderError('tavily', category, String(res.status), text || res.statusText);
       }
 
       const data = (await res.json()) as {
@@ -96,7 +119,7 @@ export class TavilySearchAdapter implements SearchProvider {
         .map((r) => ({
           url: r.url,
           title: r.title,
-          content: params.hasContent ? (r.raw_content ?? undefined) : undefined,
+          content: params.hasContent ? (r.raw_content ?? r.content ?? undefined) : undefined,
           publishedDate: r.published_date ?? undefined,
         }));
     });

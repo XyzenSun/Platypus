@@ -1,6 +1,11 @@
 import { ProviderError, classifyHttpStatus } from '../lib/errors.js';
 import { withRetry } from '../lib/retry.js';
-import type { NormalizedSearchParams, RawProviderResult, SearchProvider } from './search-types.js';
+import {
+  CompiledSearchProvider,
+  buildCapabilityNote,
+  mapLanguageCode,
+} from './search-provider-utils.js';
+import type { ProviderSearchParams, RawProviderResult } from './search-types.js';
 
 const EXA_SEARCH_URL = 'https://api.exa.ai/search';
 const EXA_MAX_NUM_RESULTS = 100;
@@ -10,63 +15,76 @@ function buildExaSearchUrl(baseUrl?: string): string {
   return `${baseUrl.replace(/\/+$/, '')}/search`;
 }
 
-const CATEGORY_MAP: Record<string, string> = {
-  news: 'news',
-  company: 'company',
-  people: 'people',
-  research: 'research paper',
-  github: 'github',
-  pdf: 'pdf',
-  finance: 'financial report',
-  // general and others → omit (use default)
-};
+function mapCategory(topic: ProviderSearchParams['topic']): string | undefined {
+  if (topic === 'news') return 'news';
+  if (topic === 'finance') return 'financial report';
+  return undefined;
+}
 
-const TYPE_MAP: Record<string, string> = {
-  fast: 'keyword',
-  balanced: 'auto',
-  deep: 'neural',
-};
+function mapSearchType(searchEffort: ProviderSearchParams['searchEffort']): string {
+  if (searchEffort === 'low') return 'fast';
+  if (searchEffort === 'high') return 'deep';
+  return 'auto';
+}
 
-export class ExaSearchAdapter implements SearchProvider {
+export class ExaSearchAdapter extends CompiledSearchProvider {
   readonly id = 'exa';
 
   constructor(
     private readonly apiKey: string,
     private readonly baseUrl?: string,
-  ) {}
+  ) {
+    super();
+  }
 
-  async search(params: NormalizedSearchParams): Promise<RawProviderResult[]> {
-    const isPersonOrCompany = params.topic === 'company' || params.topic === 'people';
+  protected buildCapabilityNote(): ReturnType<typeof buildCapabilityNote> {
+    return buildCapabilityNote(this.id, {
+      nativeFields: [
+        'query',
+        'hasContent',
+        'perChannelMaxResults',
+        'includeDomains',
+        'excludeDomains',
+        'publishedAfter',
+        'publishedBefore',
+        'language',
+        'region',
+      ],
+      notes: ['topic compiles to category and searchEffort compiles to type.'],
+    });
+  }
 
+  protected async execute(params: ProviderSearchParams): Promise<RawProviderResult[]> {
     const body: Record<string, unknown> = {
       query: params.query,
       numResults: Math.min(params.perChannelMaxResults, EXA_MAX_NUM_RESULTS),
-      type: TYPE_MAP[params.searchDepth] ?? 'auto',
+      type: mapSearchType(params.searchEffort),
     };
 
-    const category = CATEGORY_MAP[params.topic];
+    const category = mapCategory(params.topic);
     if (category) body.category = category;
-
-    // Guard: company/people categories reject domain filters and date filters
-    if (!isPersonOrCompany) {
-      if (params.includeDomains) {
-        body.includeDomains = params.includeDomains
-          .split(',')
-          .map((d) => d.trim())
-          .filter(Boolean);
-      }
-      if (params.excludeDomains) {
-        body.excludeDomains = params.excludeDomains
-          .split(',')
-          .map((d) => d.trim())
-          .filter(Boolean);
-      }
-      if (params.startDate) body.startPublishedDate = `${params.startDate}T00:00:00Z`;
-      if (params.endDate) body.endPublishedDate = `${params.endDate}T23:59:59Z`;
-    }
+    if (params.includeDomains)
+      body.includeDomains = params.includeDomains
+        .split(',')
+        .map((d) => d.trim())
+        .filter(Boolean);
+    if (params.excludeDomains)
+      body.excludeDomains = params.excludeDomains
+        .split(',')
+        .map((d) => d.trim())
+        .filter(Boolean);
+    if (params.publishedAfter) body.startPublishedDate = params.publishedAfter;
+    if (params.publishedBefore) body.endPublishedDate = params.publishedBefore;
+    const language = mapLanguageCode(params.language);
+    if (language) body.language = language;
+    if (params.region) body.userLocation = { country: params.region };
 
     if (params.hasContent) {
-      body.contents = { text: { maxCharacters: 2000 } };
+      body.contents = {
+        text: { maxCharacters: 2000 },
+        highlights: { numSentences: 3 },
+        summary: true,
+      };
     }
 
     return withRetry(async () => {

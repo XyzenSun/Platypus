@@ -31,10 +31,10 @@ describe('buildRegistry', () => {
     expect(result.fetch).toEqual(['tavily', 'exa', 'firecrawl']);
   });
 
-  it('jina is fetch-only', () => {
+  it('jina is search and fetch when configured', () => {
     const config: Config = { jina: { apiKey: 'test-key' } };
     const result = buildRegistry(config);
-    expect(result.search).toEqual([]);
+    expect(result.search).toEqual(['jina']);
     expect(result.fetch).toEqual(['jina']);
   });
 
@@ -81,6 +81,14 @@ describe('buildRegistry', () => {
     };
     const providers = getSearchProviders(config);
     expect(providers.map((p) => p.id)).toEqual(['tavily', 'exa']);
+  });
+
+  it('getSearchProviders includes firecrawl when baseUrl is configured', () => {
+    const config: Config = {
+      firecrawl: { apiKey: 'f', baseUrl: 'https://proxy.example.com/firecrawl' },
+    };
+    const providers = getSearchProviders(config);
+    expect(providers.map((p) => p.id)).toEqual(['firecrawl']);
   });
 
   it('getFetchProviders includes tavily and exa when baseUrl is configured', () => {

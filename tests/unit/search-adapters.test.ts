@@ -1,16 +1,14 @@
 import { describe, expect, it, vi } from 'vitest';
 import { ExaSearchAdapter } from '../../src/providers/exa.js';
-import type { NormalizedSearchParams } from '../../src/providers/search-types.js';
+import type { ProviderSearchParams } from '../../src/providers/search-types.js';
 import { TavilySearchAdapter } from '../../src/providers/tavily.js';
 
-const baseParams: NormalizedSearchParams = {
+const baseParams: ProviderSearchParams = {
   query: 'platypus',
-  mode: 'default',
   hasContent: false,
   perChannelMaxResults: 5,
-  topic: 'general',
-  searchDepth: 'balanced',
-  includeImages: false,
+  topic: 'common',
+  searchEffort: 'medium',
   timeoutMs: 1_000,
 };
 
@@ -30,9 +28,9 @@ describe('search adapters empty-url behavior', () => {
     );
 
     const adapter = new ExaSearchAdapter('test-key');
-    const results = await adapter.search(baseParams);
+    const execution = await adapter.search(baseParams);
 
-    expect(results).toEqual([
+    expect(execution.results).toEqual([
       {
         url: 'https://example.com',
         title: 'kept',
@@ -54,9 +52,9 @@ describe('search adapters empty-url behavior', () => {
     );
 
     const adapter = new ExaSearchAdapter('test-key');
-    const results = await adapter.search({ ...baseParams, hasContent: true });
+    const execution = await adapter.search({ ...baseParams, hasContent: true });
 
-    expect(results).toEqual([
+    expect(execution.results).toEqual([
       {
         url: '',
         title: 'missing url',
@@ -81,9 +79,9 @@ describe('search adapters empty-url behavior', () => {
     );
 
     const adapter = new TavilySearchAdapter('test-key');
-    const results = await adapter.search(baseParams);
+    const execution = await adapter.search(baseParams);
 
-    expect(results).toEqual([
+    expect(execution.results).toEqual([
       {
         url: 'https://example.com',
         title: 'kept',
@@ -105,9 +103,9 @@ describe('search adapters empty-url behavior', () => {
     );
 
     const adapter = new TavilySearchAdapter('test-key');
-    const results = await adapter.search({ ...baseParams, hasContent: true });
+    const execution = await adapter.search({ ...baseParams, hasContent: true });
 
-    expect(results).toEqual([
+    expect(execution.results).toEqual([
       {
         url: '',
         title: 'missing url',

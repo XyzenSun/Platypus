@@ -1,8 +1,8 @@
 import { ProviderError } from '../lib/errors.js';
 import type {
-  NormalizedSearchParams,
-  RawProviderResult,
+  ProviderSearchParams,
   SearchProvider,
+  SearchRequest,
   SearchResponse,
 } from '../providers/search-types.js';
 import type { ScoringStrategy } from './scoring-types.js';
@@ -10,8 +10,25 @@ import { GeminiBoostScoringStrategy } from './strategies/gemini-boost.js';
 
 const defaultScoring = new GeminiBoostScoringStrategy();
 
+function buildProviderParams(request: SearchRequest): ProviderSearchParams {
+  return {
+    query: request.query,
+    hasContent: request.hasContent,
+    perChannelMaxResults: request.perChannelMaxResults,
+    includeDomains: request.includeDomains,
+    excludeDomains: request.excludeDomains,
+    publishedAfter: request.publishedAfter,
+    publishedBefore: request.publishedBefore,
+    topic: request.topic,
+    language: request.language,
+    region: request.region,
+    searchEffort: request.searchEffort,
+    timeoutMs: request.timeoutMs,
+  };
+}
+
 export async function aggregateSearch(
-  params: NormalizedSearchParams,
+  request: SearchRequest,
   providers: SearchProvider[],
   scoring: ScoringStrategy = defaultScoring,
 ): Promise<SearchResponse> {
@@ -19,16 +36,42 @@ export async function aggregateSearch(
     throw new Error('No search channels available for the given configuration.');
   }
 
-  const settled = await Promise.allSettled(
-    providers.map((p) => p.search(params).then((results) => ({ provider: p.id, results }))),
-  );
+  const providerParams = buildProviderParams(request);
+  const settled = await Promise.allSettled(providers.map((p) => p.search(providerParams)));
 
-  const providerResults = new Map<string, RawProviderResult[]>();
+  const providerResults = new Map<
+    string,
+    { url: string; title: string; content?: string; publishedDate?: string }[]
+  >();
   const warnings: SearchResponse['warnings'] = [];
 
   for (const outcome of settled) {
     if (outcome.status === 'fulfilled') {
+      if (Array.isArray(outcome.value)) {
+        providerResults.set('unknown', outcome.value);
+        continue;
+      }
       providerResults.set(outcome.value.provider, outcome.value.results);
+      const note = outcome.value.capabilityNote;
+      if (
+        note &&
+        (note.ignoredFields?.length || note.rewrittenFields?.length || note.notes?.length)
+      ) {
+        const details = [
+          note.ignoredFields?.length ? `ignored: ${note.ignoredFields.join(', ')}` : undefined,
+          note.rewrittenFields?.length
+            ? `rewritten: ${note.rewrittenFields.join(', ')}`
+            : undefined,
+          note.notes?.length ? note.notes.join('; ') : undefined,
+        ]
+          .filter(Boolean)
+          .join(' | ');
+        warnings.push({
+          provider: note.provider,
+          code: 'CAPABILITY_NOTE',
+          message: details,
+        });
+      }
     } else {
       const err = outcome.reason;
       if (err instanceof ProviderError) {
@@ -41,8 +84,6 @@ export async function aggregateSearch(
     }
   }
 
-  // EC-1: when every provider failed, surface ALL_PROVIDERS_FAILED marker
-  // alongside the per-provider warnings, instead of silently returning [].
   if (providerResults.size === 0) {
     return { results: [], warnings, error: 'ALL_PROVIDERS_FAILED' };
   }

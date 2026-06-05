@@ -21,19 +21,41 @@ export interface SearchResponse {
   error?: string;
 }
 
-export interface NormalizedSearchParams {
+export type SearchMode = 'search';
+export type SearchTopic = 'common' | 'news' | 'finance';
+export type SearchLanguage = 'zh_cn' | 'us_en';
+export type SearchRegion = 'US' | 'CN' | 'GB' | 'DE' | 'FR' | 'JP' | 'CA';
+export type SearchEffort = 'low' | 'medium' | 'high';
+
+export interface SearchRequest {
   query: string;
-  mode: 'default' | 'high';
+  mode: SearchMode;
   channels?: string[];
+  timeoutMs: number;
   hasContent: boolean;
   perChannelMaxResults: number;
   includeDomains?: string;
   excludeDomains?: string;
-  startDate?: string;
-  endDate?: string;
-  topic: string;
-  searchDepth: 'fast' | 'balanced' | 'deep';
-  includeImages: boolean;
+  publishedAfter?: string;
+  publishedBefore?: string;
+  topic: SearchTopic;
+  language?: SearchLanguage;
+  region?: SearchRegion;
+  searchEffort: SearchEffort;
+}
+
+export interface ProviderSearchParams {
+  query: string;
+  hasContent: boolean;
+  perChannelMaxResults: number;
+  includeDomains?: string;
+  excludeDomains?: string;
+  publishedAfter?: string;
+  publishedBefore?: string;
+  topic: SearchTopic;
+  language?: SearchLanguage;
+  region?: SearchRegion;
+  searchEffort: SearchEffort;
   timeoutMs: number;
 }
 
@@ -44,7 +66,21 @@ export interface RawProviderResult {
   publishedDate?: string;
 }
 
+export interface SearchProviderCapabilityNote {
+  provider: string;
+  ignoredFields?: string[];
+  rewrittenFields?: string[];
+  nativeFields?: string[];
+  notes?: string[];
+}
+
+export interface SearchExecution {
+  provider: string;
+  results: RawProviderResult[];
+  capabilityNote?: SearchProviderCapabilityNote;
+}
+
 export interface SearchProvider {
   id: string;
-  search(params: NormalizedSearchParams): Promise<RawProviderResult[]>;
+  search(params: ProviderSearchParams): Promise<SearchExecution>;
 }

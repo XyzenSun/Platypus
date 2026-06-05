@@ -2,19 +2,19 @@ import { describe, expect, it } from 'vitest';
 import type { ProviderRanked, ScoringStrategy } from '../../src/aggregator/scoring-types.js';
 import { aggregateSearch } from '../../src/aggregator/search.js';
 import type {
-  NormalizedSearchParams,
   RawProviderResult,
   SearchProvider,
+  SearchRequest,
   SearchResult,
 } from '../../src/providers/search-types.js';
 
-const params: NormalizedSearchParams = {
+const params: SearchRequest = {
   query: 'foo',
+  mode: 'search',
   perChannelMaxResults: 10,
   hasContent: false,
-  topic: 'general',
-  searchDepth: 'balanced',
-  includeImages: false,
+  topic: 'common',
+  searchEffort: 'medium',
   timeoutMs: 60000,
 };
 
@@ -23,8 +23,8 @@ class StubProvider implements SearchProvider {
     readonly id: string,
     private readonly results: RawProviderResult[],
   ) {}
-  async search(): Promise<RawProviderResult[]> {
-    return this.results;
+  async search(): Promise<{ provider: string; results: RawProviderResult[] }> {
+    return { provider: this.id, results: this.results };
   }
 }
 

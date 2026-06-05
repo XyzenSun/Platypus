@@ -33,4 +33,17 @@ describe('loadConfig', () => {
       baseUrl: 'https://proxy.example.com/tavily',
     });
   });
+
+  it('reads FIRECRAWL_BASE_URL when FIRECRAWL_API_KEY is set', () => {
+    process.env = {
+      ...originalEnv,
+      FIRECRAWL_API_KEY: 'firecrawl-key',
+      FIRECRAWL_BASE_URL: 'https://proxy.example.com/firecrawl',
+    };
+
+    expect(loadConfig().firecrawl).toEqual({
+      apiKey: 'firecrawl-key',
+      baseUrl: 'https://proxy.example.com/firecrawl',
+    });
+  });
 });

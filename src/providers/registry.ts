@@ -1,12 +1,16 @@
 import type { Config, ProviderId } from '../config/types.js';
 import { GeminiAIClient } from '../lib/ai-clients/gemini.js';
+import { BraveSearchAdapter } from './brave.js';
 import { ExaFetchAdapter } from './exa-fetch.js';
 import { ExaSearchAdapter } from './exa.js';
 import type { FetchProvider } from './fetch-types.js';
 import { FirecrawlFetchAdapter } from './firecrawl-fetch.js';
+import { FirecrawlSearchAdapter } from './firecrawl.js';
 import { GeminiSearchAdapter } from './gemini.js';
 import { JinaFetchAdapter } from './jina-fetch.js';
+import { JinaSearchAdapter } from './jina.js';
 import type { SearchProvider } from './search-types.js';
+import { SearxngSearchAdapter } from './searxng.js';
 import { TavilyFetchAdapter } from './tavily-fetch.js';
 import { TavilySearchAdapter } from './tavily.js';
 import { PROVIDER_CAPABILITIES } from './types.js';
@@ -63,8 +67,21 @@ export function getSearchProviders(config: Config): SearchProvider[] {
   if (config.tavily?.apiKey) {
     providers.push(new TavilySearchAdapter(config.tavily.apiKey, config.tavily.baseUrl));
   }
-  if (config.exa?.apiKey)
+  if (config.exa?.apiKey) {
     providers.push(new ExaSearchAdapter(config.exa.apiKey, config.exa.baseUrl));
+  }
+  if (config.brave?.apiKey) {
+    providers.push(new BraveSearchAdapter(config.brave.apiKey, config.brave.baseUrl));
+  }
+  if (config.jina?.apiKey) {
+    providers.push(new JinaSearchAdapter(config.jina.apiKey, config.jina.baseUrl));
+  }
+  if (config.searxng?.baseUrl) {
+    providers.push(new SearxngSearchAdapter(config.searxng.baseUrl));
+  }
+  if (config.firecrawl?.apiKey) {
+    providers.push(new FirecrawlSearchAdapter(config.firecrawl.apiKey, config.firecrawl.baseUrl));
+  }
   if (config.gemini?.apiKey) {
     providers.push(
       new GeminiSearchAdapter(
@@ -86,7 +103,8 @@ export function getFetchProviders(config: Config): FetchProvider[] {
   if (config.tavily?.apiKey) {
     providers.push(new TavilyFetchAdapter(config.tavily.apiKey, config.tavily.baseUrl));
   }
-  if (config.exa?.apiKey)
+  if (config.exa?.apiKey) {
     providers.push(new ExaFetchAdapter(config.exa.apiKey, config.exa.baseUrl));
+  }
   return providers;
 }

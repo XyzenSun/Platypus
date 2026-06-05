@@ -2,6 +2,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { aggregateSearch } from '../aggregator/search.js';
 import type { Config } from '../config/types.js';
 import { buildRegistry, getSearchProviders } from '../providers/registry.js';
+import type { SearchRequest } from '../providers/search-types.js';
 import { SearchInputSchema } from './schemas.js';
 
 export function registerSearchTool(server: McpServer, config: Config): void {
@@ -24,18 +25,8 @@ export function registerSearchTool(server: McpServer, config: Config): void {
     },
     async (input) => {
       const params = SearchInputSchema.parse(input);
-
-      // Determine channels
-      let channelIds: string[];
-      if (params.channels && params.channels.length > 0) {
-        channelIds = params.channels;
-      } else if (params.mode === 'high') {
-        // high falls back to all configured search providers; AI synthesis stub
-        channelIds = registry.search;
-      } else {
-        channelIds = registry.search;
-      }
-
+      const channelIds =
+        params.channels && params.channels.length > 0 ? params.channels : registry.search;
       const providers = allProviders.filter((p) => channelIds.includes(p.id));
 
       if (providers.length === 0) {
@@ -47,42 +38,30 @@ export function registerSearchTool(server: McpServer, config: Config): void {
         };
       }
 
-      const warnings: { provider: string; code: string; message: string }[] = [];
-      if (params.mode === 'high' && !config.ai?.apiKey) {
-        warnings.push({
-          provider: 'system',
-          code: 'HIGH_MODE_DEGRADED',
-          message: 'AI key not configured; degraded to default mode.',
-        });
-      }
+      const request: SearchRequest = {
+        query: params.query,
+        mode: params.mode,
+        channels: params.channels,
+        timeoutMs: params.timeoutMs,
+        hasContent: params.hasContent,
+        perChannelMaxResults: params.perChannelMaxResults,
+        includeDomains: params.includeDomains,
+        excludeDomains: params.excludeDomains,
+        publishedAfter: params.publishedAfter,
+        publishedBefore: params.publishedBefore,
+        topic: params.topic,
+        language: params.language,
+        region: params.region,
+        searchEffort: params.searchEffort,
+      };
 
       try {
-        const response = await aggregateSearch(
-          {
-            query: params.query,
-            mode: params.mode,
-            channels: params.channels,
-            hasContent: params.hasContent,
-            perChannelMaxResults: params.perChannelMaxResults,
-            includeDomains: params.includeDomains,
-            excludeDomains: params.excludeDomains,
-            startDate: params.startDate,
-            endDate: params.endDate,
-            topic: params.topic,
-            searchDepth: params.searchDepth,
-            includeImages: params.includeImages,
-            timeoutMs: params.timeoutMs,
-          },
-          providers,
-        );
+        const response = await aggregateSearch(request, providers);
 
-        const mergedWarnings = [...warnings, ...response.warnings];
-
-        // EC-1: surface ALL_PROVIDERS_FAILED as a structured error result.
         if (response.error) {
           const errorResult = {
             error: response.error,
-            warnings: mergedWarnings,
+            warnings: response.warnings,
           };
           return {
             content: [{ type: 'text' as const, text: JSON.stringify(errorResult) }],
@@ -93,7 +72,7 @@ export function registerSearchTool(server: McpServer, config: Config): void {
 
         const result = {
           results: response.results,
-          warnings: mergedWarnings,
+          warnings: response.warnings,
         };
 
         return {
