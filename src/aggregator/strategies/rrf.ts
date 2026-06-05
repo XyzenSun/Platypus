@@ -1,6 +1,30 @@
+import { createHash } from 'node:crypto';
 import { normalizeUrl } from '../../lib/url.js';
 import type { SearchResult } from '../../providers/search-types.js';
 import type { ProviderRanked, ScoringStrategy } from '../scoring-types.js';
+
+function getResultIdentity(
+  provider: string,
+  result: {
+    url: string;
+    title: string;
+    content?: string;
+  },
+): string {
+  if (result.url) {
+    return normalizeUrl(result.url);
+  }
+
+  const hash = createHash('sha256')
+    .update(provider)
+    .update('\0')
+    .update(result.title || 'null')
+    .update('\0')
+    .update(result.content || 'null')
+    .digest('hex');
+
+  return `missing-url-${provider}-${hash}`;
+}
 
 /**
  * Reciprocal Rank Fusion (Cormack et al., SIGIR 2009).
@@ -12,7 +36,7 @@ import type { ProviderRanked, ScoringStrategy } from '../scoring-types.js';
  * Also performs URL canonicalization-based dedup and content merge:
  *   - title / content: longest non-empty wins
  *   - publishedDate: first non-empty wins
- *   - sources: list of providers that returned the (canonical) URL
+ *   - sources: list of providers that returned the shared identity
  */
 export class RrfScoringStrategy implements ScoringStrategy {
   readonly id = 'rrf';
@@ -36,10 +60,10 @@ export class RrfScoringStrategy implements ScoringStrategy {
       for (let i = 0; i < results.length; i++) {
         const r = results[i];
         if (!r) continue;
-        const canonical = normalizeUrl(r.url);
+        const identity = getResultIdentity(provider, r);
         const contribution = 1 / (this.k + (i + 1));
 
-        const existing = merged.get(canonical);
+        const existing = merged.get(identity);
         if (existing) {
           existing.rrfScore += contribution;
           existing.sources.push(provider);
@@ -49,7 +73,7 @@ export class RrfScoringStrategy implements ScoringStrategy {
           }
           if (!existing.publishedDate && r.publishedDate) existing.publishedDate = r.publishedDate;
         } else {
-          merged.set(canonical, {
+          merged.set(identity, {
             url: r.url,
             title: r.title,
             content: r.content,
@@ -63,8 +87,8 @@ export class RrfScoringStrategy implements ScoringStrategy {
 
     const sorted = [...merged.entries()].sort((a, b) => b[1].rrfScore - a[1].rrfScore);
 
-    return sorted.map(([canonical, data], idx) => ({
-      id: canonical,
+    return sorted.map(([identity, data], idx) => ({
+      id: identity,
       url: data.url,
       title: data.title,
       content: data.content,

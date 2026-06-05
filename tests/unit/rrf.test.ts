@@ -1,11 +1,22 @@
+import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import { rrfMerge } from '../../src/aggregator/rrf.js';
 import type { RawProviderResult } from '../../src/providers/search-types.js';
 
-const r = (url: string, title = 'T'): RawProviderResult => ({
+const r = (url: string, title = 'T', content?: string): RawProviderResult => ({
   url,
   title,
+  content,
 });
+
+const missingUrlId = (provider: string, title?: string, content?: string) =>
+  `missing-url-${provider}-${createHash('sha256')
+    .update(provider)
+    .update('\0')
+    .update(title || 'null')
+    .update('\0')
+    .update(content || 'null')
+    .digest('hex')}`;
 
 describe('rrfMerge', () => {
   it('returns empty array for empty input', () => {
@@ -36,7 +47,6 @@ describe('rrfMerge', () => {
     expect(shared).toBeDefined();
     expect(shared?.sources).toContain('tavily');
     expect(shared?.sources).toContain('exa');
-    // shared URL score > single-provider score
     const single = results.find((r) => r.sources.length === 1);
     expect(shared?.score).toBeGreaterThan(single?.score);
   });
@@ -49,6 +59,35 @@ describe('rrfMerge', () => {
     const results = rrfMerge(map);
     expect(results).toHaveLength(1);
     expect(results[0]?.sources).toHaveLength(2);
+    expect(results[0]?.id).toBe('https://example.com/page');
+  });
+
+  it('keeps dedup key and SearchResult.id aligned for missing urls', () => {
+    const map = new Map<string, RawProviderResult[]>([['exa', [r('', 'No URL', 'Body')]]]);
+    const [result] = rrfMerge(map);
+    expect(result?.id).toBe(missingUrlId('exa', 'No URL', 'Body'));
+  });
+
+  it('does not merge distinct empty-url results when hasContent=true', () => {
+    const map = new Map<string, RawProviderResult[]>([
+      ['exa', [r('', 'First', 'Alpha'), r('', 'Second', 'Beta')]],
+    ]);
+    const results = rrfMerge(map);
+    expect(results).toHaveLength(2);
+    expect(new Set(results.map((result) => result.id)).size).toBe(2);
+  });
+
+  it('treats missing title and content as null in fallback identity', () => {
+    const map = new Map<string, RawProviderResult[]>([['tavily', [r('', '')]]]);
+    const [result] = rrfMerge(map);
+    expect(result?.id).toBe(missingUrlId('tavily', undefined, undefined));
+  });
+
+  it('allows degenerate merge when provider, title, and content are all missing-equivalent', () => {
+    const map = new Map<string, RawProviderResult[]>([['exa', [r('', ''), r('', '')]]]);
+    const [result] = rrfMerge(map);
+    expect(rrfMerge(map)).toHaveLength(1);
+    expect(result?.sources).toEqual(['exa', 'exa']);
   });
 
   it('sorts results by score descending', () => {
@@ -70,7 +109,6 @@ describe('rrfMerge', () => {
       title: 'T',
       content: 'this is a much longer content body',
     };
-    // Order matters for "first wins" bug detection — try both orderings
     const map1 = new Map([
       ['tavily', [short]],
       ['exa', [long]],
