@@ -2,10 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { rrfMerge } from '../../src/aggregator/rrf.js';
 import type { RawProviderResult } from '../../src/providers/search-types.js';
 
-const r = (url: string, title = 'T', snippet = 'S'): RawProviderResult => ({
+const r = (url: string, title = 'T'): RawProviderResult => ({
   url,
   title,
-  snippet,
 });
 
 describe('rrfMerge', () => {
@@ -65,11 +64,10 @@ describe('rrfMerge', () => {
 
   it('content longest wins across providers', () => {
     const url = 'https://example.com/page';
-    const short: RawProviderResult = { url, title: 'T', snippet: 'S', content: 'short' };
+    const short: RawProviderResult = { url, title: 'T', content: 'short' };
     const long: RawProviderResult = {
       url,
       title: 'T',
-      snippet: 'S',
       content: 'this is a much longer content body',
     };
     // Order matters for "first wins" bug detection — try both orderings
@@ -87,8 +85,8 @@ describe('rrfMerge', () => {
 
   it('content non-empty preferred over empty', () => {
     const url = 'https://example.com/page';
-    const withContent: RawProviderResult = { url, title: 'T', snippet: 'S', content: 'hello' };
-    const withoutContent: RawProviderResult = { url, title: 'T', snippet: 'S' };
+    const withContent: RawProviderResult = { url, title: 'T', content: 'hello' };
+    const withoutContent: RawProviderResult = { url, title: 'T' };
     const map = new Map([
       ['tavily', [withoutContent]],
       ['exa', [withContent]],

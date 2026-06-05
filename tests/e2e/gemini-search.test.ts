@@ -3,6 +3,7 @@ import path from 'node:path';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { GEMINI_SUMMARY_URL } from '../../src/providers/gemini.js';
 
 const ROOT = path.resolve(import.meta.dirname, '../..');
 
@@ -64,7 +65,6 @@ describe.skipIf(!GEMINI_API_KEY)('e2e: gemini search (real API)', () => {
       results: {
         url: string;
         title: string;
-        snippet: string;
         content?: string;
         score: number;
         rank: number;
@@ -80,12 +80,13 @@ describe.skipIf(!GEMINI_API_KEY)('e2e: gemini search (real API)', () => {
     expect(top).toBeDefined();
     if (!top) return;
 
-    expect(top.url).toBe('gemini://summary');
+    expect(top.url).toBe(GEMINI_SUMMARY_URL);
     expect(top.sources).toEqual(['gemini']);
     expect(top.score).toBe(0.5);
-    expect(top.snippet.length).toBeLessThanOrEqual(200);
+    // hasContent=true: content is the full answer, title is first 100 chars
     expect(typeof top.content).toBe('string');
     expect((top.content ?? '').length).toBeGreaterThan(50);
+    expect(top.title.length).toBeLessThanOrEqual(100);
 
     process.stderr.write(
       `\n[gemini-e2e] gemini-only summary (${(top.content ?? '').length} chars): ${(top.content ?? '').slice(0, 200).replace(/\n/g, ' ')}\n`,

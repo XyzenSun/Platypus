@@ -3,6 +3,7 @@ import { withRetry } from '../lib/retry.js';
 import type { NormalizedSearchParams, RawProviderResult, SearchProvider } from './search-types.js';
 
 const EXA_SEARCH_URL = 'https://api.exa.ai/search';
+const EXA_MAX_NUM_RESULTS = 100;
 
 const CATEGORY_MAP: Record<string, string> = {
   news: 'news',
@@ -31,7 +32,7 @@ export class ExaSearchAdapter implements SearchProvider {
 
     const body: Record<string, unknown> = {
       query: params.query,
-      numResults: params.perChannelMaxResults,
+      numResults: Math.min(params.perChannelMaxResults, EXA_MAX_NUM_RESULTS),
       type: TYPE_MAP[params.searchDepth] ?? 'auto',
     };
 
@@ -82,16 +83,14 @@ export class ExaSearchAdapter implements SearchProvider {
         results: { url: string; title: string; text?: string; publishedDate?: string }[];
       };
 
-      return data.results.map((r) => {
-        const text = r.text ?? '';
-        return {
+      return data.results
+        .filter((r) => r.url && (!params.hasContent || r.title))
+        .map((r) => ({
           url: r.url,
-          title: r.title ?? '',
-          snippet: text.slice(0, 300),
-          content: params.hasContent && text ? text : undefined,
+          title: r.title,
+          content: params.hasContent ? (r.text ?? undefined) : undefined,
           publishedDate: r.publishedDate ?? undefined,
-        };
-      });
+        }));
     });
   }
 }

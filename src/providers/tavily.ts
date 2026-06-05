@@ -83,13 +83,14 @@ export class TavilySearchAdapter implements SearchProvider {
         }[];
       };
 
-      return data.results.map((r) => ({
-        url: r.url,
-        title: r.title ?? '',
-        snippet: r.content ?? '',
-        content: params.hasContent ? (r.raw_content ?? undefined) : undefined,
-        publishedDate: r.published_date ?? undefined,
-      }));
+      return data.results
+        .filter((r) => r.url && (!params.hasContent || r.title))
+        .map((r) => ({
+          url: r.url,
+          title: r.title,
+          content: params.hasContent ? (r.raw_content ?? undefined) : undefined,
+          publishedDate: r.published_date ?? undefined,
+        }));
     });
   }
 }

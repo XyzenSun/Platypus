@@ -18,7 +18,7 @@ interface ScoringStrategy {
 Implementations are responsible for:
 - URL canonicalization via `normalizeUrl` from `src/lib/url.ts`.
 - Deduplication (same canonical URL from different providers = one result).
-- Content merging (longest non-empty field wins for `title`, `snippet`, `content`).
+- Content merging (longest non-empty field wins for `title`, `content`).
 
 ## RrfScoringStrategy (default)
 

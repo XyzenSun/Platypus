@@ -40,7 +40,6 @@ class FifoStrategy implements ScoringStrategy {
           id: r.url,
           url: r.url,
           title: r.title,
-          snippet: r.snippet,
           content: r.content,
           publishedDate: r.publishedDate,
           score: 1,
@@ -58,8 +57,8 @@ describe('ScoringStrategy interface', () => {
   it('aggregateSearch defaults to RRF when no strategy passed', async () => {
     const providers = [
       new StubProvider('tavily', [
-        { url: 'https://a.com', title: 'A', snippet: 'sa' },
-        { url: 'https://b.com', title: 'B', snippet: 'sb' },
+        { url: 'https://a.com', title: 'A' },
+        { url: 'https://b.com', title: 'B' },
       ]),
     ];
     const out = await aggregateSearch(params, providers);
@@ -70,10 +69,10 @@ describe('ScoringStrategy interface', () => {
   it('aggregateSearch uses provided custom strategy (FIFO order, score=1)', async () => {
     const providers: SearchProvider[] = [
       new StubProvider('tavily', [
-        { url: 'https://t-1.com', title: 'T1', snippet: 's' },
-        { url: 'https://t-2.com', title: 'T2', snippet: 's' },
+        { url: 'https://t-1.com', title: 'T1' },
+        { url: 'https://t-2.com', title: 'T2' },
       ]),
-      new StubProvider('exa', [{ url: 'https://e-1.com', title: 'E1', snippet: 's' }]),
+      new StubProvider('exa', [{ url: 'https://e-1.com', title: 'E1' }]),
     ];
     const out = await aggregateSearch(params, providers, new FifoStrategy());
     // FIFO: tavily list first, then exa list — score is constant 1

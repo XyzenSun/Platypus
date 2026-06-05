@@ -10,7 +10,7 @@ import type { ProviderRanked, ScoringStrategy } from '../scoring-types.js';
  * Default k = 60 (paper-recommended; matches Elasticsearch / Azure AI Search / MongoDB $rankFusion).
  *
  * Also performs URL canonicalization-based dedup and content merge:
- *   - title / snippet / content: longest non-empty wins
+ *   - title / content: longest non-empty wins
  *   - publishedDate: first non-empty wins
  *   - sources: list of providers that returned the (canonical) URL
  */
@@ -25,7 +25,6 @@ export class RrfScoringStrategy implements ScoringStrategy {
       {
         url: string;
         title: string;
-        snippet: string;
         content?: string;
         publishedDate?: string;
         sources: string[];
@@ -45,7 +44,6 @@ export class RrfScoringStrategy implements ScoringStrategy {
           existing.rrfScore += contribution;
           existing.sources.push(provider);
           if (r.title.length > existing.title.length) existing.title = r.title;
-          if (r.snippet.length > existing.snippet.length) existing.snippet = r.snippet;
           if (r.content && (!existing.content || r.content.length > existing.content.length)) {
             existing.content = r.content;
           }
@@ -54,7 +52,6 @@ export class RrfScoringStrategy implements ScoringStrategy {
           merged.set(canonical, {
             url: r.url,
             title: r.title,
-            snippet: r.snippet,
             content: r.content,
             publishedDate: r.publishedDate,
             sources: [provider],
@@ -70,7 +67,6 @@ export class RrfScoringStrategy implements ScoringStrategy {
       id: canonical,
       url: data.url,
       title: data.title,
-      snippet: data.snippet,
       content: data.content,
       publishedDate: data.publishedDate,
       score: data.rrfScore,

@@ -2,7 +2,7 @@ import type { GeminiAIClient } from '../lib/ai-clients/gemini.js';
 import type { Tool } from '../lib/ai-clients/types.js';
 import type { NormalizedSearchParams, RawProviderResult, SearchProvider } from './search-types.js';
 
-const GEMINI_SUMMARY_URL = 'gemini://Gemini search has no persistent URL, Do not crawl this link';
+export const GEMINI_SUMMARY_URL = 'gemini://Gemini search has no persistent URL, Do not crawl this link';
 
 const googleSearchTool: Tool = {
   name: 'googleSearch',
@@ -23,13 +23,12 @@ export class GeminiSearchAdapter implements SearchProvider {
     const answer = response.content.trim();
     if (!answer) return [];
 
-    return [
-      {
-        url: GEMINI_SUMMARY_URL,
-        title: 'gemini search result',
-        snippet: answer.slice(0, 200),
-        content: answer,
-      },
-    ];
+    if (params.hasContent) {
+      const content = answer;
+      const title = content.slice(0, 100);
+      return [{ url: GEMINI_SUMMARY_URL, title, content }];
+    }
+    const title = answer;
+    return [{ url: GEMINI_SUMMARY_URL, title }];
   }
 }

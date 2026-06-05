@@ -53,7 +53,7 @@ describe.skipIf(!hasKeys)('e2e: search tool (real API)', () => {
     expect(result.isError).toBeFalsy();
 
     const sc = result.structuredContent as {
-      results: { url: string; title: string; snippet: string; score: number; sources: string[] }[];
+      results: { url: string; title: string; score: number; sources: string[] }[];
       warnings: { provider: string; code: string; message: string }[];
     };
 
@@ -65,7 +65,6 @@ describe.skipIf(!hasKeys)('e2e: search tool (real API)', () => {
       expect(typeof r.url).toBe('string');
       expect(r.url.length).toBeGreaterThan(0);
       expect(typeof r.title).toBe('string');
-      expect(typeof r.snippet).toBe('string');
       expect(typeof r.score).toBe('number');
       expect(Array.isArray(r.sources)).toBe(true);
       expect(r.sources.length).toBeGreaterThan(0);

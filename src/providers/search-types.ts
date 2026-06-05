@@ -2,7 +2,6 @@ export interface SearchResult {
   id: string;
   title: string;
   url: string;
-  snippet: string;
   content?: string;
   score: number;
   rank: number;
@@ -41,7 +40,6 @@ export interface NormalizedSearchParams {
 export interface RawProviderResult {
   url: string;
   title: string;
-  snippet: string;
   content?: string;
   publishedDate?: string;
 }

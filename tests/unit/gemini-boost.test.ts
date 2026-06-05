@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { ProviderRanked, ScoringStrategy } from '../../src/aggregator/scoring-types.js';
 import { GeminiBoostScoringStrategy } from '../../src/aggregator/strategies/gemini-boost.js';
+import { GEMINI_SUMMARY_URL } from '../../src/providers/gemini.js';
 import type { SearchResult } from '../../src/providers/search-types.js';
 
 /**
@@ -20,7 +21,6 @@ const result = (overrides: Partial<SearchResult>): SearchResult => ({
   id: 'x',
   url: 'https://example.com',
   title: 'T',
-  snippet: 'S',
   score: 0,
   rank: 0,
   sources: ['tavily'],
@@ -48,7 +48,7 @@ describe('GeminiBoostScoringStrategy', () => {
   it('sets gemini score to 0.5 when gemini is the only source', () => {
     const inner = new FixedStrategy([
       result({
-        url: 'gemini://summary',
+        url: GEMINI_SUMMARY_URL,
         sources: ['gemini'],
         score: 1 / 61,
         rank: 1,
@@ -70,7 +70,7 @@ describe('GeminiBoostScoringStrategy', () => {
       result({ url: 'https://a', sources: ['tavily'], score: 0.04, rank: 1 }),
       result({ url: 'https://b', sources: ['exa'], score: 0.02, rank: 2 }),
       result({
-        url: 'gemini://summary',
+        url: GEMINI_SUMMARY_URL,
         sources: ['gemini'],
         score: 1 / 61,
         rank: 3,
@@ -91,7 +91,7 @@ describe('GeminiBoostScoringStrategy', () => {
       result({ url: 'https://a', sources: ['tavily'], score: 0.04, rank: 1 }),
       result({ url: 'https://b', sources: ['exa'], score: 0.02, rank: 2 }),
       result({
-        url: 'gemini://summary',
+        url: GEMINI_SUMMARY_URL,
         sources: ['gemini'],
         score: 1 / 61,
         rank: 3,
