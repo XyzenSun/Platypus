@@ -6,3 +6,5 @@ exa :
 2. 域名权重，黑白名单模式，黑名单权重为0，白名单域名权重为2，其他为1，域名权重表通过github raw文件 json获取
 二：
 feat：结果包装层，可筛选score与rank ，只返回前X名 以及 score> x ，两个条件同时满足取交集
+三：
+feat：新增渠道 tinyfish
