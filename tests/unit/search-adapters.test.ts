@@ -64,6 +64,25 @@ describe('search adapters empty-url behavior', () => {
     ]);
   });
 
+  it('sends Exa userLocation as a string when region is provided', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        results: [{ url: 'https://example.com', title: 'kept', text: 'body' }],
+      }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const adapter = new ExaSearchAdapter('test-key');
+    await adapter.search({ ...baseParams, region: 'US' });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [, requestInit] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(requestInit).toBeDefined();
+    const body = JSON.parse(String(requestInit.body));
+    expect(body.userLocation).toBe('US');
+  });
+
   it('filters empty-url Tavily results when hasContent=false', async () => {
     vi.stubGlobal(
       'fetch',

@@ -77,7 +77,7 @@ export class ExaSearchAdapter extends CompiledSearchProvider {
     if (params.publishedBefore) body.endPublishedDate = params.publishedBefore;
     const language = mapLanguageCode(params.language);
     if (language) body.language = language;
-    if (params.region) body.userLocation = { country: params.region };
+    if (params.region) body.userLocation = params.region;
 
     if (params.hasContent) {
       body.contents = {
