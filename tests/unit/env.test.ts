@@ -46,4 +46,17 @@ describe('loadConfig', () => {
       baseUrl: 'https://proxy.example.com/firecrawl',
     });
   });
+
+  it('reads PARALLEL_BASE_URL when PARALLEL_API_KEY is set', () => {
+    process.env = {
+      ...originalEnv,
+      PARALLEL_API_KEY: 'parallel-key',
+      PARALLEL_BASE_URL: 'https://proxy.example.com/parallel',
+    };
+
+    expect(loadConfig().parallel).toEqual({
+      apiKey: 'parallel-key',
+      baseUrl: 'https://proxy.example.com/parallel',
+    });
+  });
 });

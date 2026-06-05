@@ -41,6 +41,12 @@ export function loadConfig(): Config {
       model: process.env.GEMINI_MODEL,
     };
   }
+  if (process.env.PARALLEL_API_KEY) {
+    config.parallel = {
+      apiKey: process.env.PARALLEL_API_KEY,
+      baseUrl: process.env.PARALLEL_BASE_URL,
+    };
+  }
   if (process.env.AI_API_KEY) {
     const format = process.env.AI_FORMAT as 'openai' | 'anthropic' | 'gemini' | undefined;
     config.ai = {

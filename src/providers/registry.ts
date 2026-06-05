@@ -9,6 +9,7 @@ import { FirecrawlSearchAdapter } from './firecrawl.js';
 import { GeminiSearchAdapter } from './gemini.js';
 import { JinaFetchAdapter } from './jina-fetch.js';
 import { JinaSearchAdapter } from './jina.js';
+import { ParallelSearchAdapter } from './parallel.js';
 import type { SearchProvider } from './search-types.js';
 import { SearxngSearchAdapter } from './searxng.js';
 import { TavilyFetchAdapter } from './tavily-fetch.js';
@@ -30,6 +31,7 @@ export function buildRegistry(config: Config): ListResult {
     'searxng',
     'firecrawl',
     'gemini',
+    'parallel',
   ];
 
   const configured = ALL_PROVIDERS.filter((p) => isConfigured(p, config));
@@ -59,6 +61,8 @@ function isConfigured(provider: ProviderId, config: Config): boolean {
       return !!config.firecrawl?.apiKey;
     case 'gemini':
       return !!config.gemini?.apiKey;
+    case 'parallel':
+      return !!config.parallel?.apiKey;
   }
 }
 
@@ -92,6 +96,9 @@ export function getSearchProviders(config: Config): SearchProvider[] {
         }),
       ),
     );
+  }
+  if (config.parallel?.apiKey) {
+    providers.push(new ParallelSearchAdapter(config.parallel.apiKey, config.parallel.baseUrl));
   }
   return providers;
 }

@@ -52,6 +52,13 @@ describe('buildRegistry', () => {
     expect(result.fetch).toEqual([]);
   });
 
+  it('parallel is search-only when PARALLEL_API_KEY set', () => {
+    const config: Config = { parallel: { apiKey: 'test-key' } };
+    const result = buildRegistry(config);
+    expect(result.search).toEqual(['parallel']);
+    expect(result.fetch).toEqual([]);
+  });
+
   it('gemini coexists with other search providers', () => {
     const config: Config = {
       tavily: { apiKey: 't' },
@@ -72,6 +79,14 @@ describe('buildRegistry', () => {
     const ids = providers.map((p) => p.id);
     expect(ids).toContain('tavily');
     expect(ids).toContain('gemini');
+  });
+
+  it('getSearchProviders includes a parallel adapter when PARALLEL_API_KEY is set', () => {
+    const config: Config = {
+      parallel: { apiKey: 'p', baseUrl: 'https://proxy.example.com/parallel' },
+    };
+    const providers = getSearchProviders(config);
+    expect(providers.map((p) => p.id)).toEqual(['parallel']);
   });
 
   it('getSearchProviders includes tavily and exa when baseUrl is configured', () => {

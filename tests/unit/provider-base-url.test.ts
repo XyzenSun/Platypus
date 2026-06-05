@@ -1,17 +1,16 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ExaSearchAdapter } from '../../src/providers/exa.js';
 import type { NormalizedFetchParams } from '../../src/providers/fetch-types.js';
-import type { NormalizedSearchParams } from '../../src/providers/search-types.js';
+import { ParallelSearchAdapter } from '../../src/providers/parallel.js';
+import type { ProviderSearchParams } from '../../src/providers/search-types.js';
 import { TavilyFetchAdapter } from '../../src/providers/tavily-fetch.js';
 
-const searchParams: NormalizedSearchParams = {
+const searchParams: ProviderSearchParams = {
   query: 'claude code',
-  mode: 'default',
   hasContent: false,
   perChannelMaxResults: 5,
-  topic: 'general',
-  searchDepth: 'balanced',
-  includeImages: false,
+  topic: 'common',
+  searchEffort: 'medium',
   timeoutMs: 1000,
 };
 
@@ -52,6 +51,23 @@ describe('provider baseUrl overrides', () => {
 
     expect(fetchMock).toHaveBeenCalledWith(
       'https://proxy.example.com/exa/search',
+      expect.objectContaining({ method: 'POST' }),
+    );
+  });
+
+  it('uses custom Parallel search baseUrl and trims trailing slash', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ results: [] }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await new ParallelSearchAdapter('parallel-key', 'https://proxy.example.com/parallel/').search(
+      searchParams,
+    );
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://proxy.example.com/parallel/v1/search',
       expect.objectContaining({ method: 'POST' }),
     );
   });

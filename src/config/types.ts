@@ -1,4 +1,12 @@
-export type ProviderId = 'tavily' | 'exa' | 'brave' | 'jina' | 'searxng' | 'firecrawl' | 'gemini';
+export type ProviderId =
+  | 'tavily'
+  | 'exa'
+  | 'brave'
+  | 'jina'
+  | 'searxng'
+  | 'firecrawl'
+  | 'gemini'
+  | 'parallel';
 
 export interface Config {
   tavily?: { apiKey: string; baseUrl?: string };
@@ -8,6 +16,7 @@ export interface Config {
   searxng?: { baseUrl: string };
   firecrawl?: { apiKey: string; baseUrl?: string };
   gemini?: { apiKey: string; baseUrl?: string; model?: string };
+  parallel?: { apiKey: string; baseUrl?: string };
   ai?: {
     apiKey: string;
     baseUrl?: string;
