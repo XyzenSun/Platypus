@@ -1,8 +1,10 @@
-// TODO: PR6 implement.
-// This is a stub to keep the AIClient surface symmetric across providers.
-// PR6 (mode=high) will fill in `generateGrounded` (optional — OpenAI doesn't
-// natively support web grounding without an attached tool) and `synthesize`.
-import type { AIClient, GroundedResult, SynthesizeInput } from './types.js';
+import OpenAI from 'openai';
+import type { ChatCompletionMessageParam } from 'openai/resources/chat/completions.js';
+import { ProviderError, classifyError, classifyHttpStatus } from '../errors.js';
+import { withRetry } from '../retry.js';
+import type { AIClient, ChatOptions, ChatResponse, Message } from './types.js';
+
+const DEFAULT_MODEL = 'gpt-4o-mini';
 
 export interface OpenAIAIClientOptions {
   apiKey: string;
@@ -13,20 +15,77 @@ export interface OpenAIAIClientOptions {
 export class OpenAIAIClient implements AIClient {
   readonly id = 'openai' as const;
 
-  // Stored for PR6 to consume.
-  private readonly opts: OpenAIAIClientOptions;
+  private readonly client: OpenAI;
+  private readonly model: string;
 
   constructor(opts: OpenAIAIClientOptions) {
-    this.opts = opts;
+    this.client = new OpenAI({
+      apiKey: opts.apiKey,
+      ...(opts.baseUrl ? { baseUrl: opts.baseUrl } : {}),
+    });
+    this.model = opts.model ?? DEFAULT_MODEL;
   }
 
-  async generateGrounded(_query: string, _signal?: AbortSignal): Promise<GroundedResult> {
-    void this.opts;
-    throw new Error('OpenAI generateGrounded not yet implemented (PR6)');
-  }
+  async chat(messages: Message[], options?: ChatOptions): Promise<ChatResponse> {
+    return withRetry(async () => {
+      try {
+        const oaiMessages: ChatCompletionMessageParam[] = messages.map((m) => ({
+          role: m.role,
+          content: m.content,
+        }));
 
-  async synthesize(_input: SynthesizeInput, _signal?: AbortSignal): Promise<string> {
-    void this.opts;
-    throw new Error('OpenAI synthesize not yet implemented (PR6)');
+        const tools = options?.tools?.map((t) => ({
+          type: 'function' as const,
+          function: { name: t.name, ...(t.definition as object) },
+        }));
+
+        const response = await this.client.chat.completions.create({
+          model: this.model,
+          messages: oaiMessages,
+          ...(tools && tools.length > 0 ? { tools } : {}),
+          ...(options?.signal ? { signal: options.signal } : {}),
+        });
+
+        const msg = response.choices[0]?.message;
+        const toolCalls = msg?.tool_calls
+          ?.filter(
+            (tc): tc is typeof tc & { function: { name: string; arguments: string } } =>
+              'function' in tc,
+          )
+          .map((tc) => ({
+            name: tc.function.name,
+            args: JSON.parse(tc.function.arguments) as unknown,
+          }));
+
+        return {
+          content: msg?.content ?? '',
+          ...(toolCalls && toolCalls.length > 0 ? { toolCalls } : {}),
+        };
+      } catch (err) {
+        throw toProviderError('openai', err);
+      }
+    });
   }
+}
+
+function toProviderError(provider: string, err: unknown): ProviderError {
+  if (err instanceof ProviderError) return err;
+  const anyErr = err as { status?: number; code?: number | string };
+  const message = err instanceof Error ? err.message : String(err);
+  if (typeof anyErr.status === 'number') {
+    return new ProviderError(
+      provider,
+      classifyHttpStatus(anyErr.status),
+      String(anyErr.status),
+      message,
+    );
+  }
+  const category = classifyError(err);
+  const code =
+    err instanceof Error && err.name
+      ? err.name
+      : typeof anyErr.code === 'string'
+        ? anyErr.code
+        : 'UNKNOWN';
+  return new ProviderError(provider, category, code, message);
 }

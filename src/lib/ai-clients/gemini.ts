@@ -1,7 +1,8 @@
+import type { Tool as GeminiTool } from '@google/genai';
 import { GoogleGenAI } from '@google/genai';
 import { ProviderError, classifyError, classifyHttpStatus } from '../errors.js';
 import { withRetry } from '../retry.js';
-import type { AIClient, GroundedResult, SynthesizeInput } from './types.js';
+import type { AIClient, ChatOptions, ChatResponse, Message } from './types.js';
 
 const DEFAULT_MODEL = 'gemini-2.5-flash-lite';
 
@@ -11,15 +12,6 @@ export interface GeminiAIClientOptions {
   model?: string;
 }
 
-/**
- * Gemini AI client using the official @google/genai SDK.
- *
- * - `generateGrounded(query)` runs a model call with the `googleSearch` tool enabled,
- *   returning the LLM-synthesized answer plus grounding metadata (web search queries
- *   the model issued, list of source URIs and titles).
- * - `synthesize(input)` is the mode=high entry point; intentionally unimplemented
- *   for this PR (PR6 will fill it in).
- */
 export class GeminiAIClient implements AIClient {
   readonly id = 'gemini' as const;
 
@@ -32,44 +24,45 @@ export class GeminiAIClient implements AIClient {
     this.model = opts.model ?? DEFAULT_MODEL;
   }
 
-  async generateGrounded(query: string, signal?: AbortSignal): Promise<GroundedResult> {
+  async chat(messages: Message[], options?: ChatOptions): Promise<ChatResponse> {
     return withRetry(async () => {
       try {
+        const systemMsg = messages.find((m) => m.role === 'system');
+        const contents = messages
+          .filter((m) => m.role !== 'system')
+          .map((m) => ({
+            role: m.role === 'assistant' ? 'model' : 'user',
+            parts: [{ text: m.content }],
+          }));
+
+        const tools = options?.tools?.map((t) => t.definition) as GeminiTool[] | undefined;
+
         const response = await this.client.models.generateContent({
           model: this.model,
-          contents: query,
+          contents,
           config: {
-            tools: [{ googleSearch: {} }],
-            ...(signal ? { abortSignal: signal } : {}),
+            ...(systemMsg ? { systemInstruction: systemMsg.content } : {}),
+            ...(tools ? { tools } : {}),
+            ...(options?.signal ? { abortSignal: options.signal } : {}),
           },
         });
 
-        const answer = response.text ?? '';
-        const meta = response.candidates?.[0]?.groundingMetadata;
-        const searchQueries = meta?.webSearchQueries ?? [];
-        const chunks =
-          meta?.groundingChunks
-            ?.map((c) => ({
-              uri: c.web?.uri ?? '',
-              title: c.web?.title ?? '',
-            }))
-            .filter((c) => c.uri) ?? [];
+        const toolCalls = response.candidates?.[0]?.content?.parts
+          ?.filter((p) => p.functionCall != null)
+          .map((p) => ({ name: p.functionCall?.name ?? '', args: p.functionCall?.args ?? {} }));
 
-        return { answer, searchQueries, chunks };
+        return {
+          content: response.text ?? '',
+          ...(toolCalls && toolCalls.length > 0 ? { toolCalls } : {}),
+        };
       } catch (err) {
         throw this.toProviderError(err);
       }
     });
   }
 
-  async synthesize(_input: SynthesizeInput, _signal?: AbortSignal): Promise<string> {
-    throw new Error('Gemini synthesize not yet implemented (PR6)');
-  }
-
   private toProviderError(err: unknown): ProviderError {
     if (err instanceof ProviderError) return err;
-    // The SDK surfaces HTTP failures via Error with a numeric status field or an
-    // embedded status string. Normalise them through the shared classifier.
     const anyErr = err as { status?: number; code?: number | string; message?: string };
     const status =
       typeof anyErr.status === 'number'
