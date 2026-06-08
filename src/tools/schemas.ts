@@ -5,49 +5,64 @@ export const ListInputSchema = z.object({});
 const SearchDateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 
 export const SearchInputSchema = z.object({
-  query: z.string().min(1).max(400).describe('Search query'),
-  mode: z.enum(['search']).default('search').describe('Top-level orchestration mode'),
-  channels: z.array(z.string()).optional().describe('Override provider channels'),
-  hasContent: z.boolean().default(true).describe('Include body-like content when available'),
+  query: z.string().min(1).max(400).describe('Search keywords.'),
+  mode: z.enum(['search']).default('search').describe('Optional. Keep the default value.'),
+  channels: z
+    .array(z.string())
+    .optional()
+    .describe('Optional. Search channels to use. Omit to use the default channels.'),
+  hasContent: z
+    .boolean()
+    .default(true)
+    .describe(
+      'Return full content when available. If disabled, only URLs and titles are returned. Recommended.',
+    ),
   perChannelMaxResults: z
     .number()
     .int()
     .min(1)
     .max(50)
     .default(10)
-    .describe('Max results per channel'),
-  includeDomains: z.string().optional().describe('Comma-separated domain whitelist'),
-  excludeDomains: z.string().optional().describe('Comma-separated domain blacklist'),
-  publishedAfter: SearchDateSchema.optional().describe('Published after date YYYY-MM-DD'),
-  publishedBefore: SearchDateSchema.optional().describe('Published before date YYYY-MM-DD'),
-  topic: z.enum(['common', 'news', 'finance']).default('common').describe('Search topic'),
-  language: z.enum(['zh_cn', 'us_en']).optional().describe('Preferred result language'),
+    .describe('Maximum results per channel.'),
+  includeDomains: z
+    .string()
+    .optional()
+    .describe('Optional. Only return results from these domains, separated by commas.'),
+  excludeDomains: z
+    .string()
+    .optional()
+    .describe('Optional. Exclude results from these domains, separated by commas.'),
+  publishedAfter: SearchDateSchema.optional().describe(
+    'Optional. Only return results after this date, in YYYY-MM-DD format.',
+  ),
+  publishedBefore: SearchDateSchema.optional().describe(
+    'Optional. Only return results before this date, in YYYY-MM-DD format.',
+  ),
+  topic: z.enum(['common', 'news', 'finance']).default('common').describe('Search topic.'),
+  language: z.enum(['zh_cn', 'us_en']).optional().describe('Optional. Preferred result language.'),
   region: z
     .enum(['US', 'CN', 'GB', 'DE', 'FR', 'JP', 'CA'])
     .optional()
-    .describe('Preferred country bias'),
-  searchEffort: z
-    .enum(['low', 'medium', 'high'])
-    .default('medium')
-    .describe('Latency vs quality tradeoff'),
-  minScore: z
-    .number()
-    .finite()
-    .optional()
-    .describe('Keep results with score greater than or equal to this value'),
-  maxRank: z
-    .number()
-    .int()
-    .min(1)
-    .optional()
-    .describe('Keep results with rank less than or equal to this value'),
+    .describe('Optional. Preferred result region.'),
+  searchEffort: z.enum(['low', 'medium', 'high']).default('medium').describe('Search depth.'),
   timeoutMs: z
     .number()
     .int()
     .min(1000)
     .max(120000)
     .default(60000)
-    .describe('Per-provider timeout ms'),
+    .describe('Per-channel timeout in milliseconds.'),
+  minScore: z
+    .number()
+    .finite()
+    .optional()
+    .describe('Optional. Only return results with score greater than or equal to this value.'),
+  maxRank: z
+    .number()
+    .int()
+    .min(1)
+    .optional()
+    .describe('Optional. Only return results with rank less than or equal to this value.'),
 });
 
 export const FetchInputSchema = z.object({
