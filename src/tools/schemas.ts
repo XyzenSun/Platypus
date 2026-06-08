@@ -10,7 +10,7 @@ export const SearchInputSchema = z.object({
   channels: z
     .array(z.string())
     .optional()
-    .describe('Optional. Search channels to use. Omit to use the default channels.'),
+    .describe('Optional. Search channels to use. Usually, this parameter does not need to be passed.'),
   hasContent: z
     .boolean()
     .default(true)
@@ -56,7 +56,7 @@ export const SearchInputSchema = z.object({
     .number()
     .finite()
     .optional()
-    .describe('Optional. Only return results with score greater than or equal to this value.'),
+    .describe('Optional. Only return results with score greater than or equal to this value.Usually, this parameter does not need to be passed.'),
   maxRank: z
     .number()
     .int()

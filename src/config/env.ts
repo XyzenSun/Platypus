@@ -22,7 +22,8 @@ function parseProviderWeights(raw: string | undefined): Partial<Record<ProviderI
         provider === 'jina' ||
         provider === 'searxng' ||
         provider === 'firecrawl' ||
-        provider === 'gemini'
+        provider === 'gemini' ||
+        provider === 'ollama'
       ) {
         weights[provider] = parsed;
       }
@@ -77,6 +78,12 @@ export async function loadConfig(): Promise<Config> {
       apiKey: process.env.GEMINI_API_KEY,
       baseUrl: process.env.GEMINI_BASE_URL,
       model: process.env.GEMINI_MODEL,
+    };
+  }
+  if (process.env.OLLAMA_API_KEY) {
+    config.ollama = {
+      apiKey: process.env.OLLAMA_API_KEY,
+      baseUrl: process.env.OLLAMA_BASE_URL,
     };
   }
   if (process.env.AI_API_KEY) {

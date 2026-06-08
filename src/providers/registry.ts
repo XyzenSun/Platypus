@@ -9,6 +9,7 @@ import { FirecrawlSearchAdapter } from './firecrawl.js';
 import { GeminiSearchAdapter } from './gemini.js';
 import { JinaFetchAdapter } from './jina-fetch.js';
 import { JinaSearchAdapter } from './jina.js';
+import { OllamaSearchAdapter } from './ollama.js';
 import type { SearchProvider } from './search-types.js';
 import { SearxngSearchAdapter } from './searxng.js';
 import { TavilyFetchAdapter } from './tavily-fetch.js';
@@ -30,6 +31,7 @@ export function buildRegistry(config: Config): ListResult {
     'searxng',
     'firecrawl',
     'gemini',
+    'ollama',
   ];
 
   const configured = ALL_PROVIDERS.filter((p) => isConfigured(p, config));
@@ -59,6 +61,8 @@ function isConfigured(provider: ProviderId, config: Config): boolean {
       return !!config.firecrawl?.apiKey;
     case 'gemini':
       return !!config.gemini?.apiKey;
+    case 'ollama':
+      return !!config.ollama?.apiKey;
   }
 }
 
@@ -92,6 +96,9 @@ export function getSearchProviders(config: Config): SearchProvider[] {
         }),
       ),
     );
+  }
+  if (config.ollama?.apiKey) {
+    providers.push(new OllamaSearchAdapter(config.ollama.apiKey, config.ollama.baseUrl));
   }
   return providers;
 }
