@@ -1,6 +1,8 @@
 import { DEFAULT_DOMAIN_BLACKLIST_URL, loadDomainBlacklist } from './domain-blacklist.js';
 import type { Config, ProviderId } from './types.js';
 
+const DEFAULT_AI_TIMEOUT_MS = 10_000;
+
 function parseProviderWeights(raw: string | undefined): Partial<Record<ProviderId, number>> {
   if (!raw) return {};
 
@@ -88,11 +90,13 @@ export async function loadConfig(): Promise<Config> {
   }
   if (process.env.AI_API_KEY) {
     const format = process.env.AI_FORMAT as 'openai' | 'anthropic' | 'gemini' | undefined;
+    const timeoutMs = Number(process.env.AI_TIMEOUT_MS ?? DEFAULT_AI_TIMEOUT_MS);
     config.ai = {
       apiKey: process.env.AI_API_KEY,
       baseUrl: process.env.AI_BASE_URL,
       model: process.env.AI_MODEL,
       format: format ?? 'openai',
+      timeoutMs: Number.isFinite(timeoutMs) ? timeoutMs : DEFAULT_AI_TIMEOUT_MS,
     };
   }
 

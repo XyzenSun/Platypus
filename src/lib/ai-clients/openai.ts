@@ -64,7 +64,7 @@ export class OpenAIAIClient implements AIClient {
       } catch (err) {
         throw toProviderError('openai', err);
       }
-    });
+    }, options?.retryDelays);
   }
 }
 

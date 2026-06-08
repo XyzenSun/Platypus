@@ -1,4 +1,5 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { maybeRunAIAggregation } from '../aggregator/ai-aggregation.js';
 import { aggregateSearch, createSearchScoring } from '../aggregator/search.js';
 import type { Config } from '../config/types.js';
 import { buildRegistry, getSearchProviders } from '../providers/registry.js';
@@ -59,7 +60,11 @@ export function registerSearchTool(server: McpServer, config: Config): void {
 
       try {
         const scoring = createSearchScoring(config, request);
-        const response = await aggregateSearch(request, providers, scoring);
+        const aggregated = await aggregateSearch(request, providers, scoring);
+        const response =
+          request.mode === 'AIAggregation'
+            ? await maybeRunAIAggregation(config, request, aggregated)
+            : aggregated;
 
         if (response.error) {
           const errorResult = {

@@ -63,7 +63,7 @@ export class AnthropicAIClient implements AIClient {
       } catch (err) {
         throw toProviderError('anthropic', err);
       }
-    });
+    }, options?.retryDelays);
   }
 }
 

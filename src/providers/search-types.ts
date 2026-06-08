@@ -21,7 +21,7 @@ export interface SearchResponse {
   error?: string;
 }
 
-export type SearchMode = 'search';
+export type SearchMode = 'BasicAggregation' | 'AIAggregation';
 export type SearchTopic = 'common' | 'news' | 'finance';
 export type SearchLanguage = 'zh_cn' | 'us_en';
 export type SearchRegion = 'US' | 'CN' | 'GB' | 'DE' | 'FR' | 'JP' | 'CA';

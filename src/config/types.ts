@@ -28,6 +28,7 @@ export interface Config {
     baseUrl?: string;
     model?: string;
     format: 'openai' | 'anthropic' | 'gemini';
+    timeoutMs: number;
   };
   searchPostProcess: SearchPostProcessConfig;
 }

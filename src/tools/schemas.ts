@@ -6,11 +6,18 @@ const SearchDateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 
 export const SearchInputSchema = z.object({
   query: z.string().min(1).max(400).describe('Search keywords.'),
-  mode: z.enum(['search']).default('search').describe('Optional. Keep the default value.'),
+  mode: z
+    .enum(['BasicAggregation', 'AIAggregation'])
+    .default('BasicAggregation')
+    .describe(
+      'Aggregation mode. Default is BasicAggregation. Recommended: AIAggregation for better results and cleaner downstream context.',
+    ),
   channels: z
     .array(z.string())
     .optional()
-    .describe('Optional. Search channels to use. Usually, this parameter does not need to be passed.'),
+    .describe(
+      'Optional. Search channels to use. Usually, this parameter does not need to be passed.',
+    ),
   hasContent: z
     .boolean()
     .default(true)
@@ -56,7 +63,9 @@ export const SearchInputSchema = z.object({
     .number()
     .finite()
     .optional()
-    .describe('Optional. Only return results with score greater than or equal to this value.Usually, this parameter does not need to be passed.'),
+    .describe(
+      'Optional. Only return results with score greater than or equal to this value.Usually, this parameter does not need to be passed.',
+    ),
   maxRank: z
     .number()
     .int()

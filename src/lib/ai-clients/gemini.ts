@@ -58,7 +58,7 @@ export class GeminiAIClient implements AIClient {
       } catch (err) {
         throw this.toProviderError(err);
       }
-    });
+    }, options?.retryDelays);
   }
 
   private toProviderError(err: unknown): ProviderError {

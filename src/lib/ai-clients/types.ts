@@ -14,6 +14,7 @@ export interface Tool {
 export interface ChatOptions {
   tools?: Tool[];
   signal?: AbortSignal;
+  retryDelays?: number[];
 }
 
 export interface ChatResponse {
