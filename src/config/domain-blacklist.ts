@@ -1,8 +1,7 @@
 import { ProviderError, classifyHttpStatus } from '../lib/errors.js';
 import { withRetry } from '../lib/retry.js';
 
-export const DEFAULT_DOMAIN_BLACKLIST_URL =
-  'https://raw.githubusercontent.com/Xyzen/Platypus/master/src/config/domain-blacklist.txt';
+export const DEFAULT_DOMAIN_BLACKLIST_URL ='https://raw.githubusercontent.com/XyzenSun/Platypus/refs/heads/master/src/config/domain-blacklist.txt';
 
 function normalizeDomain(domain: string): string | undefined {
   const trimmed = domain.trim().toLowerCase();
