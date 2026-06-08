@@ -9,7 +9,7 @@
 | 工具 | 说明 |
 |------|------|
 | `list` | 列出当前可用的 Provider 及其能力 |
-| `search` | 并发调用多个搜索引擎，用 RRF 算法融合排序结果 |
+| `search` | 并发调用多个搜索引擎，先做 RRF 融合，再做统一的 score 后处理与域名黑名单过滤 |
 | `fetch` | 并发抓取 URL 内容，返回多个 Provider 的结果视图 |
 
 ## 支持的 Provider
@@ -52,6 +52,28 @@ cp .env.example .env
 | `JINA_API_KEY` | Jina Reader 抓取 |
 | `FIRECRAWL_API_KEY` | Firecrawl 抓取 |
 | `SEARXNG_BASE_URL` | SearXNG 自托管地址 |
+| `SEARCH_PROVIDER_WEIGHTS` | 搜索结果后处理的渠道权重，格式为 `provider:value`，多个值用逗号分隔，例如 `exa:1.5,gemini:0.7` |
+| `DOMAIN_BLACKLIST_URL` | 域名黑名单下载地址，可选；未设置时使用内置默认 raw URL |
+
+## Search 排序与域名策略
+
+`search` 的排序流程：
+
+1. 先做基础 RRF 融合、URL 规范化去重和内容合并。
+2. 再做统一 post-processing，包括：
+   - 按渠道权重调整 `score`
+   - 重新排序并重算 `rank`
+   - 按域名黑名单过滤结果
+
+`SEARCH_PROVIDER_WEIGHTS` 未设置时，所有渠道默认权重为 `1`，整体排序语义保持与原先接近。
+
+域名黑名单源文件位于 `src/config/domain-blacklist.txt`，用途是维护默认黑名单列表。文件格式为纯文本：
+
+- 一行一个域名
+- 支持空行
+- 支持以 `#` 开头的注释行
+
+黑名单匹配采用父域匹配：如果黑名单中包含 `example.com`，则 `example.com`、`www.example.com` 以及更深层子域都会命中。命中后结果会直接从最终 `search` 返回中移除，不参与最终排序输出。
 
 ## 架构
 
@@ -62,13 +84,13 @@ MCP Client
 Tools (list / search / fetch)
     │
     ▼
-Aggregator（并发 + RRF 融合）
+Aggregator（并发 + RRF 融合 + score 后处理 + 域名黑名单过滤）
     │
     ▼
 Providers（Tavily / Exa / Gemini / Jina / Firecrawl）
 ```
 
-**RRF 评分**：`score = Σ 1/(k + rank)`，k=60，URL 规范化去重，内容取最长。评分策略通过 `ScoringStrategy` 接口可插拔。
+**RRF 评分**：`score = Σ 1/(k + rank)`，k=60，URL 规范化去重，内容取最长。基础融合完成后，聚合层还会继续执行统一的 score post-processing（provider weights + domain blacklist filtering）。评分策略通过 `ScoringStrategy` 接口可插拔。
 
 ## 开发
 

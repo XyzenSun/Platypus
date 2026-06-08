@@ -13,6 +13,8 @@
 - 能复用 `search-provider-utils.ts` 的编译、过滤、限流、能力说明逻辑时，优先复用，避免在各 provider 中重复实现。
 - provider 内只处理该渠道特有的请求映射、响应解析、错误翻译；跨渠道通用规则应放回共享工具或上层聚合逻辑。
 - 新增字段时，先确认它属于统一协议层还是渠道私有行为；只有对多个 provider 都成立的能力，才进入 `search-types.ts` / `fetch-types.ts`。
+- provider 不负责 search score weighting、domain blacklist filtering 或最终排序重排；这些逻辑属于 aggregator / config 层。
+- 如果搜索结果包含空 URL 或 sentinel URL，provider 只需按统一协议返回原始结果，不要自行参与黑名单判断，也不要在 adapter 内推断聚合后的过滤行为。
 
 ## 新增渠道实现适配器
 当需要新增一个搜索或抓取渠道时，按下面顺序修改：
