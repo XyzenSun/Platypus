@@ -10,14 +10,16 @@
 |------|------|
 | `list` | 列出当前可用的 Provider 及其能力 |
 | `search` | 并发调用多个搜索引擎，先做 RRF 融合，再做统一的 score 后处理与域名黑名单过滤 |
-| `fetch` | 并发抓取 URL 内容，返回多个 Provider 的结果视图 |
+| `fetch` | 并发抓取 URL 内容，返回多个 Provider 的结果视图 (优化中 暂不支持)   |
 
 ## 支持的 Provider
 
 | 类型 | Provider |
 |------|---------|
-| 搜索 | Tavily、Exa、Gemini AI |
+| 搜索 | Tavily、Exa、Brave、Jina、SearXNG、Firecrawl、Gemini AI |
 | 抓取 | Firecrawl、Jina Reader、Tavily Extract、Exa Contents |
+
+说明：并非所有 Provider 同时支持搜索与抓取，具体以 `list` 工具返回的当前可用能力为准。
 
 ## 安装与运行
 
@@ -30,6 +32,57 @@ npm run build
 
 ```bash
 node dist/index.js
+```
+
+## 通过 mcp-cli 使用
+
+如果你想用 `mcp-cli` 在本地交互式调试或以脚本方式调用本 MCP 服务，建议先将本项目 clone 到本地并完成构建。
+
+### 交互式连接本地 stdio MCP server
+
+```bash
+git clone <repo-url>
+cd Platypus
+npm install
+npm run build
+npx @wong2/mcp-cli node dist/index.js
+```
+
+如果服务依赖当前 shell 中的环境变量，可以改用：
+
+```bash
+npx @wong2/mcp-cli --pass-env node dist/index.js
+```
+
+### 非交互式调用本地 stdio MCP server
+
+先在项目根目录创建一个最小 `config.json`：
+
+```json
+{
+  "mcpServers": {
+    "platypus": {
+      "command": "node",
+      "args": ["dist/index.js"]
+    }
+  }
+}
+```
+
+然后使用 `call-tool` 调用本项目真实工具名。例如调用 `list`：
+
+```bash
+git clone <repo-url>
+cd Platypus
+npm install
+npm run build
+npx @wong2/mcp-cli -c config.json call-tool platypus:list
+```
+
+调用 `search` 并传入参数：
+
+```bash
+npx @wong2/mcp-cli -c config.json call-tool platypus:search --args '{"query":"Anthropic MCP","limit":5}'
 ```
 
 ## 环境变量
