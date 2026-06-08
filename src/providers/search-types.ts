@@ -42,6 +42,8 @@ export interface SearchRequest {
   language?: SearchLanguage;
   region?: SearchRegion;
   searchEffort: SearchEffort;
+  minScore?: number;
+  maxRank?: number;
 }
 
 export interface ProviderSearchParams {

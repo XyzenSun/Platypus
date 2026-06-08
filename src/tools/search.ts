@@ -8,7 +8,6 @@ import { SearchInputSchema } from './schemas.js';
 export function registerSearchTool(server: McpServer, config: Config): void {
   const allProviders = getSearchProviders(config);
   const registry = buildRegistry(config);
-  const scoring = createSearchScoring(config);
 
   server.registerTool(
     'search',
@@ -54,9 +53,12 @@ export function registerSearchTool(server: McpServer, config: Config): void {
         language: params.language,
         region: params.region,
         searchEffort: params.searchEffort,
+        minScore: params.minScore,
+        maxRank: params.maxRank,
       };
 
       try {
+        const scoring = createSearchScoring(config, request);
         const response = await aggregateSearch(request, providers, scoring);
 
         if (response.error) {

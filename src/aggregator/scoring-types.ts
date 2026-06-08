@@ -10,6 +10,8 @@ export type ProviderRanked = Map<string, RawProviderResult[]>;
 export interface ScoringPostProcessOptions {
   providerWeights?: Partial<Record<ProviderId, number>>;
   domainBlacklist?: ReadonlySet<string>;
+  minScore?: number;
+  maxRank?: number;
 }
 
 /**

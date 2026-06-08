@@ -1,6 +1,10 @@
 import { isDomainBlacklisted } from '../../config/domain-blacklist.js';
 import type { SearchResult } from '../../providers/search-types.js';
-import type { ScoringStrategy, ScoringStrategyPostProcessor } from '../scoring-types.js';
+import type {
+  ScoringPostProcessOptions,
+  ScoringStrategy,
+  ScoringStrategyPostProcessor,
+} from '../scoring-types.js';
 
 function resort(results: SearchResult[]): SearchResult[] {
   const sorted = [...results].sort((a, b) => b.score - a.score);
@@ -44,29 +48,46 @@ function applyDomainBlacklist(
   });
 }
 
+function applyResultFilters(
+  results: SearchResult[],
+  options: Pick<ScoringPostProcessOptions, 'minScore' | 'maxRank'>,
+): SearchResult[] {
+  const { minScore, maxRank } = options;
+  if (minScore === undefined && maxRank === undefined) return results;
+
+  return results.filter((result) => {
+    if (minScore !== undefined && result.score < minScore) return false;
+    if (maxRank !== undefined && result.rank > maxRank) return false;
+    return true;
+  });
+}
+
+function postProcessResultsInternal(
+  results: SearchResult[],
+  options: ScoringPostProcessOptions = {},
+): SearchResult[] {
+  const weighted = applyProviderWeights(results, options.providerWeights ?? {});
+  const blacklistFiltered = applyDomainBlacklist(weighted, options.domainBlacklist ?? new Set());
+  const reranked = resort(blacklistFiltered);
+  return applyResultFilters(reranked, options);
+}
+
 export class PostProcessScoringStrategy implements ScoringStrategy {
   readonly id: string;
 
   constructor(
     private readonly inner: ScoringStrategy,
-    private readonly options: {
-      providerWeights?: Partial<Record<string, number>>;
-      domainBlacklist?: ReadonlySet<string>;
-    } = {},
+    private readonly options: ScoringPostProcessOptions = {},
   ) {
     this.id = `${inner.id}+post-process`;
   }
 
   merge(input: Parameters<ScoringStrategy['merge']>[0]): SearchResult[] {
     const merged = this.inner.merge(input);
-    const weighted = applyProviderWeights(merged, this.options.providerWeights ?? {});
-    const filtered = applyDomainBlacklist(weighted, this.options.domainBlacklist ?? new Set());
-    return resort(filtered);
+    return postProcessResultsInternal(merged, this.options);
   }
 }
 
 export const postProcessResults: ScoringStrategyPostProcessor = (results, options = {}) => {
-  const weighted = applyProviderWeights(results, options.providerWeights ?? {});
-  const filtered = applyDomainBlacklist(weighted, options.domainBlacklist ?? new Set());
-  return resort(filtered);
+  return postProcessResultsInternal(results, options);
 };

@@ -29,10 +29,15 @@ function buildProviderParams(request: SearchRequest): ProviderSearchParams {
   };
 }
 
-export function createSearchScoring(config: Config): ScoringStrategy {
+export function createSearchScoring(
+  config: Config,
+  request?: Pick<SearchRequest, 'minScore' | 'maxRank'>,
+): ScoringStrategy {
   return new PostProcessScoringStrategy(baseScoring, {
     providerWeights: config.searchPostProcess.providerWeights,
     domainBlacklist: config.searchPostProcess.domainBlacklist,
+    minScore: request?.minScore,
+    maxRank: request?.maxRank,
   });
 }
 

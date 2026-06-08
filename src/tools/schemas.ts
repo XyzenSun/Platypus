@@ -30,6 +30,17 @@ export const SearchInputSchema = z.object({
     .enum(['low', 'medium', 'high'])
     .default('medium')
     .describe('Latency vs quality tradeoff'),
+  minScore: z
+    .number()
+    .finite()
+    .optional()
+    .describe('Keep results with score greater than or equal to this value'),
+  maxRank: z
+    .number()
+    .int()
+    .min(1)
+    .optional()
+    .describe('Keep results with rank less than or equal to this value'),
   timeoutMs: z
     .number()
     .int()

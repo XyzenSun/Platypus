@@ -24,7 +24,7 @@ const result = (overrides: Partial<SearchResult>): SearchResult => ({
 });
 
 describe('PostProcessScoringStrategy', () => {
-  it('keeps ordering unchanged when no weights or blacklist are configured', () => {
+  it('keeps ordering unchanged when no weights, blacklist, or filters are configured', () => {
     const inner = new FixedStrategy([
       result({ id: 'a', url: 'https://a.example.com', score: 0.04, rank: 1, sources: ['tavily'] }),
       result({ id: 'b', url: 'https://b.example.com', score: 0.02, rank: 2, sources: ['exa'] }),
@@ -64,6 +64,58 @@ describe('PostProcessScoringStrategy', () => {
 
     expect(out.map((item) => item.id)).toEqual(['a', 'c']);
     expect(out.map((item) => item.rank)).toEqual([1, 2]);
+  });
+
+  it('filters by minScore after weighting, blacklist filtering, and re-ranking', () => {
+    const inner = new FixedStrategy([
+      result({ id: 'a', url: 'https://a.example.com', score: 0.04, rank: 1, sources: ['tavily'] }),
+      result({ id: 'b', url: 'https://blocked.com/item', score: 0.03, rank: 2, sources: ['exa'] }),
+      result({ id: 'c', url: 'https://c.example.com', score: 0.02, rank: 3, sources: ['gemini'] }),
+    ]);
+
+    const out = new PostProcessScoringStrategy(inner, {
+      providerWeights: { gemini: 3 },
+      domainBlacklist: new Set(['blocked.com']),
+      minScore: 0.05,
+    }).merge(new Map());
+
+    expect(out.map((item) => item.id)).toEqual(['c']);
+    expect(out[0]?.score).toBe(0.06);
+    expect(out[0]?.rank).toBe(1);
+  });
+
+  it('filters by maxRank after final re-ranking', () => {
+    const inner = new FixedStrategy([
+      result({ id: 'a', url: 'https://a.example.com', score: 0.04, rank: 1, sources: ['tavily'] }),
+      result({ id: 'b', url: 'https://b.example.com', score: 0.03, rank: 2, sources: ['exa'] }),
+      result({ id: 'c', url: 'https://c.example.com', score: 0.02, rank: 3, sources: ['gemini'] }),
+    ]);
+
+    const out = new PostProcessScoringStrategy(inner, {
+      providerWeights: { gemini: 3 },
+      maxRank: 2,
+    }).merge(new Map());
+
+    expect(out.map((item) => item.id)).toEqual(['c', 'a']);
+    expect(out.map((item) => item.rank)).toEqual([1, 2]);
+  });
+
+  it('applies minScore and maxRank together on final results', () => {
+    const inner = new FixedStrategy([
+      result({ id: 'a', url: 'https://a.example.com', score: 0.04, rank: 1, sources: ['tavily'] }),
+      result({ id: 'b', url: 'https://b.example.com', score: 0.03, rank: 2, sources: ['exa'] }),
+      result({ id: 'c', url: 'https://c.example.com', score: 0.02, rank: 3, sources: ['gemini'] }),
+    ]);
+
+    const out = new PostProcessScoringStrategy(inner, {
+      providerWeights: { gemini: 3, exa: 2 },
+      minScore: 0.05,
+      maxRank: 2,
+    }).merge(new Map());
+
+    expect(out.map((item) => item.id)).toEqual(['b', 'c']);
+    expect(out.map((item) => item.rank)).toEqual([1, 2]);
+    expect(out.every((item) => item.score >= 0.05)).toBe(true);
   });
 
   it('runs after gemini boost so wrappers remain composable', () => {
