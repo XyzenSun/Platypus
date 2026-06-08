@@ -1,0 +1,4 @@
+{"file":".trellis/spec/backend/index.md","reason":"检查阶段需要以后端规范索引为总入口核对实现。"}
+{"file":".trellis/spec/backend/directory-structure.md","reason":"检查跨 tools/providers/aggregator 修改是否保持目录职责边界。"}
+{"file":".trellis/spec/backend/quality-guidelines.md","reason":"检查 lint、typecheck、测试与 TypeScript 约束。"}
+{"file":".trellis/spec/backend/scoring-strategies.md","reason":"检查结果筛选是否遵循现有 scoring/post-process 契约与顺序要求。"}

@@ -265,3 +265,128 @@ const response = await aggregateSearch(request, providers, scoring);
 - Forces `https`.
 - Strips `www.`, trailing slash, fragment (`#`).
 - Removes tracking params (`utm_*`, `fbclid`, `gclid`, etc.).
+
+## Scenario: Request-scoped search result filters (`minScore` / `maxRank`)
+
+### 1. Scope / Trigger
+- Trigger: the `search` MCP tool request contract now exposes two optional result-filter fields that affect the final aggregated response shape.
+- Applies to: `src/tools/schemas.ts`, `src/tools/search.ts`, `src/providers/search-types.ts`, `src/aggregator/search.ts`, `src/aggregator/scoring-types.ts`, `src/aggregator/strategies/post-process.ts`, and callers of the `search` tool.
+- Does not apply to: provider adapter request compilation or upstream provider APIs.
+
+### 2. Signatures
+- MCP tool input schema:
+
+```typescript
+const SearchInputSchema = z.object({
+  ...
+  minScore: z.number().finite().optional(),
+  maxRank: z.number().int().min(1).optional(),
+});
+```
+
+- Unified request contract:
+
+```typescript
+interface SearchRequest {
+  ...
+  minScore?: number;
+  maxRank?: number;
+}
+```
+
+- Scoring wrapper factory:
+
+```typescript
+function createSearchScoring(
+  config: Config,
+  request?: Pick<SearchRequest, 'minScore' | 'maxRank'>,
+): ScoringStrategy;
+```
+
+- Post-process options:
+
+```typescript
+interface ScoringPostProcessOptions {
+  providerWeights?: Partial<Record<ProviderId, number>>;
+  domainBlacklist?: ReadonlySet<string>;
+  minScore?: number;
+  maxRank?: number;
+}
+```
+
+### 3. Contracts
+- Request contract:
+  - `minScore` is optional and means “keep only results with `score >= minScore`”.
+  - `maxRank` is optional and means “keep only results with `rank <= maxRank`”.
+  - Omitting both fields must preserve existing search behavior exactly.
+- Aggregation contract:
+  - Provider adapters do not receive `minScore` or `maxRank`; they stay in the unified request / aggregation layer only.
+  - Final result processing order is:
+    1. merge base scoring strategy output
+    2. apply provider weights
+    3. apply domain blacklist filtering
+    4. re-sort / re-rank by final score
+    5. apply `minScore` / `maxRank` filtering against the final `score` / `rank`
+  - Filtering does not recompute rank after removal; `maxRank` is evaluated against the already re-ranked final list.
+- Response contract:
+  - `results` may shrink after filtering.
+  - `warnings` and `error` behavior remain unchanged.
+- Environment contract:
+  - No new env keys are introduced for these filters.
+
+### 4. Validation & Error Matrix
+| Condition | Behavior |
+|---|---|
+| `minScore` omitted | Do not filter by score |
+| `maxRank` omitted | Do not filter by rank |
+| Both omitted | Preserve previous post-process behavior |
+| `minScore` provided and result `score < minScore` | Remove the result |
+| `maxRank` provided and result `rank > maxRank` | Remove the result |
+| `maxRank < 1` | Reject at Zod schema validation |
+| `minScore` non-finite | Reject at Zod schema validation |
+| Provider returns low scores (e.g. typical RRF ~0.01–0.03) and `minScore` is too high | Return empty `results` array, not an error |
+
+### 5. Good / Base / Bad Cases
+- Good:
+  - Request sets `minScore=0.01` and `maxRank=10`; final response returns only the top 10 final-ranked results whose score is at least `0.01`.
+- Base:
+  - Request omits both fields; response matches the previous weighted + blacklist-filtered + re-ranked behavior.
+- Bad:
+  - Provider adapter inspects `minScore` and truncates upstream results before aggregation.
+
+### 6. Tests Required
+- Unit: `tests/unit/post-process-scoring.test.ts`
+  - assert default behavior is unchanged when no filters are configured
+  - assert `minScore` runs after weighting, blacklist filtering, and re-ranking
+  - assert `maxRank` uses the final re-ranked list
+  - assert `minScore` + `maxRank` compose on final results
+- Real/E2E verification:
+  - call the `search` MCP tool with `channels=['exa', 'tavily']`
+  - verify `maxRank=10` + `minScore=0.01` returns bounded results
+  - verify a high threshold like `minScore=0.2` can legitimately return `[]` without error
+- Type / contract checks:
+  - assert the request path from tool schema → `SearchRequest` → `createSearchScoring()` preserves the optional fields
+
+### 7. Wrong vs Correct
+#### Wrong
+```typescript
+function buildProviderParams(request: SearchRequest): ProviderSearchParams {
+  return {
+    ...,
+    minScore: request.minScore,
+    maxRank: request.maxRank,
+  };
+}
+```
+
+#### Correct
+```typescript
+const request: SearchRequest = {
+  ...,
+  minScore: params.minScore,
+  maxRank: params.maxRank,
+};
+
+const scoring = createSearchScoring(config, request);
+const response = await aggregateSearch(request, providers, scoring);
+```

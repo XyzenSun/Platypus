@@ -1,0 +1,4 @@
+{"file":".trellis/spec/backend/index.md","reason":"后端总规范入口，包含编码前检查项与相关 guideline 索引。"}
+{"file":".trellis/spec/backend/directory-structure.md","reason":"本次会改 tools/providers/aggregator 相关文件，需要遵循模块边界与导入约定。"}
+{"file":".trellis/spec/backend/quality-guidelines.md","reason":"实现阶段需要遵循 TypeScript、测试、lint/typecheck 要求。"}
+{"file":".trellis/spec/backend/scoring-strategies.md","reason":"本任务直接扩展 search post-process 结果筛选，需要遵循现有 scoring/post-process 合约。"}
