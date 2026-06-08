@@ -3,7 +3,7 @@ import { loadConfig } from './config/env.js';
 import { logger } from './server/logger.js';
 import { createServer } from './server/server.js';
 
-const config = loadConfig();
+const config = await loadConfig();
 const server = createServer(config);
 const transport = new StdioServerTransport();
 await server.connect(transport);

@@ -1,3 +1,4 @@
+import type { Config } from '../config/types.js';
 import { ProviderError } from '../lib/errors.js';
 import type {
   ProviderSearchParams,
@@ -7,8 +8,9 @@ import type {
 } from '../providers/search-types.js';
 import type { ScoringStrategy } from './scoring-types.js';
 import { GeminiBoostScoringStrategy } from './strategies/gemini-boost.js';
+import { PostProcessScoringStrategy } from './strategies/post-process.js';
 
-const defaultScoring = new GeminiBoostScoringStrategy();
+const baseScoring = new GeminiBoostScoringStrategy();
 
 function buildProviderParams(request: SearchRequest): ProviderSearchParams {
   return {
@@ -27,10 +29,17 @@ function buildProviderParams(request: SearchRequest): ProviderSearchParams {
   };
 }
 
+export function createSearchScoring(config: Config): ScoringStrategy {
+  return new PostProcessScoringStrategy(baseScoring, {
+    providerWeights: config.searchPostProcess.providerWeights,
+    domainBlacklist: config.searchPostProcess.domainBlacklist,
+  });
+}
+
 export async function aggregateSearch(
   request: SearchRequest,
   providers: SearchProvider[],
-  scoring: ScoringStrategy = defaultScoring,
+  scoring: ScoringStrategy = baseScoring,
 ): Promise<SearchResponse> {
   if (providers.length === 0) {
     throw new Error('No search channels available for the given configuration.');

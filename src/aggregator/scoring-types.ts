@@ -1,3 +1,4 @@
+import type { ProviderId } from '../config/types.js';
 import type { RawProviderResult, SearchResult } from '../providers/search-types.js';
 
 /**
@@ -5,6 +6,11 @@ import type { RawProviderResult, SearchResult } from '../providers/search-types.
  * Map key = provider id, value = ordered list (index 0 = highest rank from that provider).
  */
 export type ProviderRanked = Map<string, RawProviderResult[]>;
+
+export interface ScoringPostProcessOptions {
+  providerWeights?: Partial<Record<ProviderId, number>>;
+  domainBlacklist?: ReadonlySet<string>;
+}
 
 /**
  * Pluggable scoring algorithm.
@@ -18,3 +24,8 @@ export interface ScoringStrategy {
   readonly id: string;
   merge(input: ProviderRanked): SearchResult[];
 }
+
+export type ScoringStrategyPostProcessor = (
+  results: SearchResult[],
+  options?: ScoringPostProcessOptions,
+) => SearchResult[];

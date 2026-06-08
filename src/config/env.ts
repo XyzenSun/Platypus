@@ -1,7 +1,45 @@
-import type { Config } from './types.js';
+import { DEFAULT_DOMAIN_BLACKLIST_URL, loadDomainBlacklist } from './domain-blacklist.js';
+import type { Config, ProviderId } from './types.js';
 
-export function loadConfig(): Config {
-  const config: Config = {};
+function parseProviderWeights(raw: string | undefined): Partial<Record<ProviderId, number>> {
+  if (!raw) return {};
+
+  return raw
+    .split(',')
+    .map((entry) => entry.trim())
+    .filter(Boolean)
+    .reduce<Partial<Record<ProviderId, number>>>((weights, entry) => {
+      const [provider, value] = entry.split(':', 2);
+      if (!provider || !value) return weights;
+
+      const parsed = Number(value);
+      if (!Number.isFinite(parsed)) return weights;
+
+      if (
+        provider === 'tavily' ||
+        provider === 'exa' ||
+        provider === 'brave' ||
+        provider === 'jina' ||
+        provider === 'searxng' ||
+        provider === 'firecrawl' ||
+        provider === 'gemini'
+      ) {
+        weights[provider] = parsed;
+      }
+
+      return weights;
+    }, {});
+}
+
+export async function loadConfig(): Promise<Config> {
+  const domainBlacklistUrl = process.env.DOMAIN_BLACKLIST_URL ?? DEFAULT_DOMAIN_BLACKLIST_URL;
+  const config: Config = {
+    searchPostProcess: {
+      providerWeights: parseProviderWeights(process.env.SEARCH_PROVIDER_WEIGHTS),
+      domainBlacklistUrl,
+      domainBlacklist: await loadDomainBlacklist(domainBlacklistUrl),
+    },
+  };
 
   if (process.env.TAVILY_API_KEY) {
     config.tavily = {

@@ -150,12 +150,114 @@ id: identity,
 
 Reference: `src/aggregator/search.ts:11` — `const defaultScoring = new GeminiBoostScoringStrategy()`.
 
-## Adding a New Strategy
+## Scenario: Search post-processing weights and domain blacklist
 
-1. Create `src/aggregator/strategies/<name>.ts` implementing `ScoringStrategy`.
-2. Delegate URL canonicalization to `normalizeUrl` — do not re-implement it.
-3. Pass the strategy instance as the third argument to `aggregateSearch()`.
-4. Add unit tests in `tests/unit/`.
+### 1. Scope / Trigger
+- Trigger: aggregator response ranking now depends on startup-loaded env wiring and a remote blacklist contract, so code-spec depth is required for scoring + config boundaries.
+- Applies to: `src/aggregator/search.ts`, `src/aggregator/strategies/post-process.ts`, `src/config/env.ts`, `src/config/domain-blacklist.ts`, and callers of the search tool.
+- Does not apply to: provider adapter request mapping or fetch providers.
+
+### 2. Signatures
+- Scoring wrapper factory:
+
+```typescript
+function createSearchScoring(config: Config): ScoringStrategy;
+```
+
+- Config contract:
+
+```typescript
+interface SearchPostProcessConfig {
+  providerWeights: Partial<Record<ProviderId, number>>;
+  domainBlacklistUrl: string;
+  domainBlacklist: ReadonlySet<string>;
+}
+```
+
+- Domain blacklist helpers:
+
+```typescript
+function parseDomainBlacklist(text: string): Set<string>;
+function isDomainBlacklisted(hostname: string, blacklist: ReadonlySet<string>): boolean;
+async function loadDomainBlacklist(url?: string): Promise<Set<string>>;
+```
+
+### 3. Contracts
+- Request/aggregation contract:
+  - Base strategy still produces merged `SearchResult[]` first.
+  - Post-processing then applies `score = score * providerWeight` and re-sorts/re-ranks results.
+  - Domain blacklist filtering happens after score adjustment and before final rank assignment.
+- Environment contract:
+  - `SEARCH_PROVIDER_WEIGHTS` is optional.
+  - Format: comma-separated `provider:value` pairs, e.g. `exa:1.5,gemini:0.7`.
+  - Supported provider keys: `tavily`, `exa`, `brave`, `jina`, `searxng`, `firecrawl`, `gemini`.
+  - Missing providers default to weight `1`.
+  - Invalid provider keys or non-finite numeric values are ignored.
+  - `DOMAIN_BLACKLIST_URL` is optional and overrides the built-in default raw URL.
+- Startup-loading contract:
+  - `loadConfig()` must load the blacklist once during process startup.
+  - No TTL refresh.
+  - No local file fallback.
+  - Blacklist load failures surface from startup config loading rather than being silently ignored.
+- Blacklist file contract:
+  - Source file is `src/config/domain-blacklist.txt`.
+  - Format is plain text: one domain per line.
+  - Empty lines and `#` comment lines are ignored.
+  - Matching is parent-domain based: `example.com` blocks `example.com`, `www.example.com`, and deeper subdomains.
+
+### 4. Validation & Error Matrix
+| Condition | Behavior |
+|---|---|
+| `SEARCH_PROVIDER_WEIGHTS` unset | Use empty map, all providers behave as weight `1` |
+| Pair has unknown provider key | Ignore that pair |
+| Pair has non-finite value | Ignore that pair |
+| `DOMAIN_BLACKLIST_URL` unset | Use built-in default raw URL |
+| Remote blacklist fetch returns non-OK | Throw startup config error and fail startup |
+| Blacklist contains `example.com` and result host is `a.b.example.com` | Result is filtered out |
+| Result URL is malformed | Do not blacklist-filter that record |
+| Blacklist is empty | Filtering step becomes a no-op |
+
+### 5. Good / Base / Bad Cases
+- Good:
+  - `SEARCH_PROVIDER_WEIGHTS="exa:1.5,gemini:0.5"` boosts Exa-backed results, demotes Gemini-only results, then recomputes rank.
+- Base:
+  - Blacklist file contains `example.com`; result `https://www.example.com/a` is removed from final output.
+- Bad:
+  - Provider adapters inspect blacklist env vars or apply filtering before returning `RawProviderResult[]`.
+
+### 6. Tests Required
+- Unit: `tests/unit/post-process-scoring.test.ts`
+  - assert weighted scores are multiplied correctly
+  - assert filtered blacklist results are removed
+  - assert ranks are recomputed after weighting/filtering
+  - assert multi-source results use the highest configured provider weight
+- Unit: `tests/unit/domain-blacklist.test.ts`
+  - assert txt parsing ignores comments/empty lines
+  - assert parent-domain matching works for nested subdomains
+  - assert remote load parses fetched text into a `Set`
+- Unit: `tests/unit/env.test.ts`
+  - assert default blacklist URL is used when env override is absent
+  - assert `DOMAIN_BLACKLIST_URL` override is respected
+  - assert provider weight parsing ignores invalid/unknown entries
+
+### 7. Wrong vs Correct
+#### Wrong
+```typescript
+class ExaSearchProvider {
+  async search(params) {
+    const blocked = process.env.DOMAIN_BLACKLIST_URL;
+    // provider-side filtering leaks aggregation policy downward
+  }
+}
+```
+
+#### Correct
+```typescript
+const scoring = createSearchScoring(config);
+const response = await aggregateSearch(request, providers, scoring);
+// aggregation completes first, then post-processing applies weights and blacklist rules
+```
+
 
 ## URL Normalization
 

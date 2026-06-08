@@ -1,0 +1,5 @@
+# Internal domain blacklist source
+# One domain per line. Empty lines and comments are ignored.
+
+example-bad-domain.test
+subdomain.blocked-example.test

@@ -1,5 +1,5 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { aggregateSearch } from '../aggregator/search.js';
+import { aggregateSearch, createSearchScoring } from '../aggregator/search.js';
 import type { Config } from '../config/types.js';
 import { buildRegistry, getSearchProviders } from '../providers/registry.js';
 import type { SearchRequest } from '../providers/search-types.js';
@@ -8,6 +8,7 @@ import { SearchInputSchema } from './schemas.js';
 export function registerSearchTool(server: McpServer, config: Config): void {
   const allProviders = getSearchProviders(config);
   const registry = buildRegistry(config);
+  const scoring = createSearchScoring(config);
 
   server.registerTool(
     'search',
@@ -56,7 +57,7 @@ export function registerSearchTool(server: McpServer, config: Config): void {
       };
 
       try {
-        const response = await aggregateSearch(request, providers);
+        const response = await aggregateSearch(request, providers, scoring);
 
         if (response.error) {
           const errorResult = {
