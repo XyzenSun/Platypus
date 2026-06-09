@@ -3,7 +3,12 @@ import { AnthropicAIClient } from '../lib/ai-clients/anthropic.js';
 import { GeminiAIClient } from '../lib/ai-clients/gemini.js';
 import { OpenAIAIClient } from '../lib/ai-clients/openai.js';
 import type { AIClient, Message } from '../lib/ai-clients/types.js';
-import type { SearchRequest, SearchResponse, SearchResult } from '../providers/search-types.js';
+import type {
+  SearchRequest,
+  SearchResponse,
+  SearchResult,
+  SearchWarning,
+} from '../providers/search-types.js';
 import { log } from '../server/logger.js';
 
 export const AI_AGGREGATION_MISSING_CONFIG_ERROR =
@@ -11,6 +16,13 @@ export const AI_AGGREGATION_MISSING_CONFIG_ERROR =
 
 const AI_AGGREGATION_PROMPT =
   '请帮我去除下面内容中，与 "{{query}}" 无关的内容例如导航栏,广告，备案以及与"{{query}}" 无关的内容，下面是你要处理的内容 “{{payload}}” ，请只返回去除噪声后的内容，无需做任何解释';
+
+export const AI_AGGREGATION_SUCCESS_PREFIX = '[AIAggregation Success]: ';
+export const AI_AGGREGATION_FAIL_PREFIX = '[AIAggregation Fail, Origin Content/Title]: ';
+export const AI_AGGREGATION_WARNING_PROVIDER = 'ai-aggregation';
+export const AI_AGGREGATION_WARNING_CODE = 'AI_CLEAN_FAILED';
+export const AI_AGGREGATION_EMPTY_RESPONSE_MESSAGE = 'ai returned empty content';
+export const AI_AGGREGATION_WARNING_MESSAGE_MAX = 50;
 
 function createAIClient(config: Config): AIClient {
   if (!config.ai) {
@@ -42,13 +54,63 @@ function buildPrompt(query: string, result: SearchResult, hasContent: boolean): 
   );
 }
 
+/**
+ * Truncate a warning message to {@link AI_AGGREGATION_WARNING_MESSAGE_MAX} characters,
+ * counting actual Unicode characters (so multi-byte / emoji are treated as one). No
+ * trailing ellipsis is appended — the tail is simply discarded (per prd Decisions).
+ */
+function truncateWarningMessage(raw: string): string {
+  return Array.from(raw).slice(0, AI_AGGREGATION_WARNING_MESSAGE_MAX).join('');
+}
+
+function buildFailureWarning(rawMessage: string): SearchWarning {
+  return {
+    provider: AI_AGGREGATION_WARNING_PROVIDER,
+    code: AI_AGGREGATION_WARNING_CODE,
+    message: truncateWarningMessage(rawMessage),
+  };
+}
+
+function applyFailPrefix(result: SearchResult, hasContent: boolean): SearchResult {
+  if (hasContent) {
+    return {
+      ...result,
+      content: `${AI_AGGREGATION_FAIL_PREFIX}${result.content ?? ''}`,
+    };
+  }
+
+  return {
+    ...result,
+    title: `${AI_AGGREGATION_FAIL_PREFIX}${result.title}`,
+  };
+}
+
+function applySuccessPrefix(
+  result: SearchResult,
+  hasContent: boolean,
+  cleanedText: string,
+): SearchResult {
+  const prefixed = `${AI_AGGREGATION_SUCCESS_PREFIX}${cleanedText}`;
+
+  if (hasContent) {
+    return { ...result, content: prefixed };
+  }
+
+  return { ...result, title: prefixed };
+}
+
+interface CleanResultOutcome {
+  result: SearchResult;
+  warning?: SearchWarning;
+}
+
 async function cleanResult(
   client: AIClient,
   query: string,
   result: SearchResult,
   hasContent: boolean,
   timeoutMs: number,
-): Promise<SearchResult> {
+): Promise<CleanResultOutcome> {
   const prompt = buildPrompt(query, result, hasContent);
   const messages: Message[] = [{ role: 'user', content: prompt }];
 
@@ -59,17 +121,23 @@ async function cleanResult(
     });
     const cleanedText = response.content.trim();
     if (!cleanedText) {
-      return result;
+      // Empty content is treated as a failure (per prd Decisions): fall back to the
+      // original field value with the Fail prefix and surface a warning.
+      log(`[ai-aggregation] cleanResult failed: ${AI_AGGREGATION_EMPTY_RESPONSE_MESSAGE}`);
+      return {
+        result: applyFailPrefix(result, hasContent),
+        warning: buildFailureWarning(AI_AGGREGATION_EMPTY_RESPONSE_MESSAGE),
+      };
     }
 
-    if (hasContent) {
-      return { ...result, content: cleanedText };
-    }
-
-    return { ...result, title: cleanedText };
+    return { result: applySuccessPrefix(result, hasContent, cleanedText) };
   } catch (err) {
-    log(`[ai-aggregation] cleanResult failed: ${err instanceof Error ? err.message : String(err)}`);
-    return result;
+    const rawMessage = err instanceof Error ? err.message : String(err);
+    log(`[ai-aggregation] cleanResult failed: ${rawMessage}`);
+    return {
+      result: applyFailPrefix(result, hasContent),
+      warning: buildFailureWarning(rawMessage),
+    };
   }
 }
 
@@ -86,15 +154,25 @@ export async function maybeRunAIAggregation(
   const resolvedClient = client ?? createAIClient(config);
   const timeoutMs = config.ai?.timeoutMs ?? 10_000;
   const cleanedResults: SearchResult[] = [];
+  const accumulatedWarnings: SearchWarning[] = [];
 
   for (const result of response.results) {
-    cleanedResults.push(
-      await cleanResult(resolvedClient, request.query, result, request.hasContent, timeoutMs),
+    const outcome = await cleanResult(
+      resolvedClient,
+      request.query,
+      result,
+      request.hasContent,
+      timeoutMs,
     );
+    cleanedResults.push(outcome.result);
+    if (outcome.warning) {
+      accumulatedWarnings.push(outcome.warning);
+    }
   }
 
   return {
     ...response,
     results: cleanedResults,
+    warnings: [...response.warnings, ...accumulatedWarnings],
   };
 }
