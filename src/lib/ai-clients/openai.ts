@@ -21,7 +21,7 @@ export class OpenAIAIClient implements AIClient {
   constructor(opts: OpenAIAIClientOptions) {
     this.client = new OpenAI({
       apiKey: opts.apiKey,
-      ...(opts.baseUrl ? { baseUrl: opts.baseUrl } : {}),
+      ...(opts.baseUrl ? { baseURL: opts.baseUrl } : {}),
     });
     this.model = opts.model ?? DEFAULT_MODEL;
   }
