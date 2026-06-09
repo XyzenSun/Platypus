@@ -21,7 +21,58 @@
 
 说明：并非所有 Provider 同时支持搜索与抓取，具体以 `list` 工具返回的当前可用能力为准。
 
-## 安装与运行
+## 快速开始（推荐：npm 包）
+
+无需 clone 仓库，直接通过 npm 拉取已发布的版本：
+
+[![npm version](https://img.shields.io/npm/v/@xyzensun/platypus-mcp.svg)](https://www.npmjs.com/package/@xyzensun/platypus-mcp)
+
+### 在 MCP 客户端中配置
+
+在你的 MCP 客户端配置文件（如 Claude Desktop 的 `claude_desktop_config.json`、Cursor 的 MCP 设置）中加入：
+
+```json
+{
+  "mcpServers": {
+    "platypus": {
+      "command": "npx",
+      "args": ["-y", "@xyzensun/platypus-mcp"],
+      "env": {
+        "TAVILY_API_KEY": "your-tavily-key",
+        "EXA_API_KEY": "your-exa-key",
+        "GEMINI_API_KEY": "your-gemini-key"
+      }
+    }
+  }
+}
+```
+
+按需填写所需 Provider 的 API Key，未配置的 Provider 会自动跳过。完整环境变量见下文 [环境变量](#环境变量)。
+
+### 直接通过 npx 运行
+
+也可以在终端直接启动 stdio server：
+
+```bash
+npx -y @xyzensun/platypus-mcp
+```
+
+或全局安装后调用 `platypus-mcp` 命令：
+
+```bash
+npm install -g @xyzensun/platypus-mcp
+platypus-mcp
+```
+
+### 通过 mcp-cli 调试 npm 包
+
+```bash
+npx @wong2/mcp-cli --pass-env npx -y @xyzensun/platypus-mcp
+```
+
+---
+
+## 从源码构建（开发者路径）
 
 ```bash
 npm install
@@ -34,7 +85,7 @@ npm run build
 node dist/index.js
 ```
 
-## 通过 mcp-cli 使用
+## 通过 mcp-cli 使用（源码方式）
 
 如果你想用 `mcp-cli` 在本地交互式调试或以脚本方式调用本 MCP 服务，建议先将本项目 clone 到本地并完成构建。
 
