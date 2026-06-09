@@ -82,43 +82,72 @@ constructor(opts: GeminiAIClientOptions) {
 
 ### 1. Scope / Trigger
 - 触发：`src/aggregator/ai-aggregation.ts` 调用 `AIClient.chat`；任何 SDK 集成层错误（401/网络/超时/AbortError）都会抛到这里。
+- 同样适用于 `client.chat` 返回空字符串（trim 后为空）的"伪成功"分支——它和异常一样按失败处理。
 
 ### 2. Signatures
-- `cleanResult(client, query, result, hasContent, timeoutMs) -> Promise<SearchResult>`（内部函数，通过 `maybeRunAIAggregation` 的可选 `client` 参数注入 mock 进行测试）。
+- `cleanResult(client, query, result, hasContent, timeoutMs) -> Promise<{ result: SearchResult; warning?: SearchWarning }>`（内部函数，通过 `maybeRunAIAggregation` 的可选 `client` 参数注入 mock 进行测试）。
+- `maybeRunAIAggregation` 负责聚合每条 `cleanResult` 返回的 warning，并 spread 进 `SearchResponse.warnings`；**cleanResult 自己不允许 mutate** response。
 
 ### 3. Contracts
 - Input: `client: AIClient`、`query: string`、`result: SearchResult`、`hasContent: boolean`、`timeoutMs: number`。
-- Output: 永远返回 `SearchResult`——成功则字段被 AI 清洗后内容替换，失败则**原 result 原样返回**。
-- 失败副作用：必须调用 `log(...)`（`src/server/logger.ts`，写 stderr）把 `err.message` 透出，**禁止 console.log/error**（违反 `logging-guidelines.md`，会污染 MCP stdio）。
+- Output: 永远返回 `{ result, warning? }`：
+  - 成功（chat 返回非空文本）→ `result` 的目标字段（hasContent 决定 `content` 还是 `title`）= `AI_AGGREGATION_SUCCESS_PREFIX + cleanedText`；`warning` 为 `undefined`。
+  - 失败（chat 抛异常 **或** trim 后为空）→ `result` 的目标字段 = `AI_AGGREGATION_FAIL_PREFIX + originalFieldValue`；`warning` 必填，结构见 §4。
+- 失败副作用：必须调用 `log(...)`（`src/server/logger.ts`，写 stderr）把失败原因透出，前缀固定 `[ai-aggregation]`。**禁止 console.log/error**（违反 `logging-guidelines.md`，会污染 MCP stdio）。
+- 失败时 **不**抛异常——保持 MCP 协议不被打断。
 
-### 4. Validation & Error Matrix
+### 4. Failure Warning Shape
 
-| 条件 | 行为 |
-|------|------|
-| `client.chat` 抛 `ProviderError`（任何 category） | 调 `log()`；返回原 result；不再抛 |
-| `client.chat` 抛超时/AbortError | 调 `log()`；返回原 result；不再抛 |
-| `client.chat` 返回空字符串 | 不调 `log()`；返回原 result（不空覆盖） |
-| `client.chat` 返回正常文本 | 用 trim 后文本覆盖 `title` 或 `content`（取决于 `hasContent`） |
+失败时 `cleanResult` 返回的 `warning` 字段：
 
-### 5. Good/Base/Bad Cases
-- **Good**: SDK 正常响应非空文本 → 字段被替换。
-- **Base**: SDK 抛 `ProviderError(QUOTA, '401', ...)` → log 记录；用户看到原 result，MCP 协议不被打断。
-- **Bad（禁止）**: catch 块只 `return result`，不 log → 用户和维护者都看不到 SDK 失败信号，bug 完全隐形（本任务暴露的就是这个）。
+| 字段 | 值 |
+|------|-----|
+| `provider` | `AI_AGGREGATION_WARNING_PROVIDER`（`'ai-aggregation'`） |
+| `code` | `AI_AGGREGATION_WARNING_CODE`（`'AI_CLEAN_FAILED'`） |
+| `message` | `Array.from(rawMessage).slice(0, AI_AGGREGATION_WARNING_MESSAGE_MAX).join('')`——按"字符"截到前 50 个，**不**加 `...` 尾缀 |
 
-### 6. Tests Required
-- 注入 mock client 让 `chat` reject `new ProviderError(...)`，断言：
-  - `log` 被调用一次
-  - `log` 参数包含原 error 的 `message`
-  - 返回的 result 与输入 result **结构相等**
-- 注入 mock client 让 `chat` 返回空字符串，断言：返回的 result 与输入 result 结构相等，且 `log` 未被调用。
-- 注入 mock client 让 `chat` 返回 `'cleaned text'`，断言：返回 result 的 `content`（或 `title`）等于 `'cleaned text'`。
+`rawMessage` 来源：
+- chat throw：`err instanceof Error ? err.message : String(err)`
+- 空响应：固定字符串 `AI_AGGREGATION_EMPTY_RESPONSE_MESSAGE`（`'ai returned empty content'`）
 
-### 7. Wrong vs Correct
+> 用 `Array.from` 而非 `substring` / slice，是为了把 emoji / 多字节字符当一个字符处理，避免截到半字节。
 
-#### Wrong
+### 5. Validation & Error Matrix
+
+| 条件 | 返回 `result` 字段 | 返回 `warning` | 是否 `log()` |
+|------|------------------|---------------|-------------|
+| `client.chat` 返回非空文本 | `AI_AGGREGATION_SUCCESS_PREFIX + cleanedText` | 无 | 否 |
+| `client.chat` 抛 `ProviderError`（任何 category） | `AI_AGGREGATION_FAIL_PREFIX + originalFieldValue` | 有（message=err.message 截 50） | 是 |
+| `client.chat` 抛超时/AbortError | `AI_AGGREGATION_FAIL_PREFIX + originalFieldValue` | 有（message=err.message 截 50） | 是 |
+| `client.chat` 返回 trim 后为空 | `AI_AGGREGATION_FAIL_PREFIX + originalFieldValue` | 有（message=`'ai returned empty content'`） | 是 |
+
+`hasContent=true` 时操作 `content` 字段，`hasContent=false` 时操作 `title` 字段——路由保持不变。
+
+### 6. Good/Base/Bad Cases
+- **Good**: SDK 正常响应非空文本 → 字段被 Success 前缀 + 清洗后文本替换；客户端一眼能看出"这段被 AI 重写过"。
+- **Base**: SDK 抛 `ProviderError(QUOTA, '401', ...)` → log 记录；目标字段被 Fail 前缀 + 原值回写；客户端在 `warnings[]` 看到 `AI_CLEAN_FAILED`，并能继续使用原始内容；MCP 协议不被打断。
+- **Bad（禁止）**:
+  - catch 块只 `return result`，不 log、不加前缀、不抛 warning → 失败被伪装成成功，调用方无法分辨。
+  - 把 50 字符截断写成 `substring(0, 50)` 或 `slice` 字节 → 多字节字符会被切坏，emoji 显示乱码。
+  - 在 `cleanResult` 内部直接 mutate `response.warnings` → 违反单一职责，破坏可测性。
+
+### 7. Tests Required
+- 注入 mock client 让 `chat` reject `new Error('boom')`，断言：
+  - `log` 被调用，且参数包含 `'[ai-aggregation]'` 与 `'boom'`。
+  - 返回 result 的目标字段 = `AI_AGGREGATION_FAIL_PREFIX + originalFieldValue`。
+  - `response.warnings` 多 1 条，等于 `{ provider:'ai-aggregation', code:'AI_CLEAN_FAILED', message:'boom' }`。
+- 注入 mock client 让 `chat` reject `new Error('x'.repeat(80))`，断言：warning.message 的**字符长度**严格等于 `AI_AGGREGATION_WARNING_MESSAGE_MAX`，且**不**以 `...` 结尾。
+- 注入 mock client 让 `chat` 返回 `{ content: '   ' }`，断言：目标字段带 Fail 前缀 + 原值；warning.message = `'ai returned empty content'`；`log` 被调用 ≥1 次。
+- 注入 mock client 让 `chat` 返回非空文本，断言：目标字段 = `AI_AGGREGATION_SUCCESS_PREFIX + cleanedText`；`warnings` 长度不变；`log` 未被调用。
+- 注入 mock client 让多条 result 都 reject，断言：`warnings.length` = 失败 result 数，按调用顺序排列。
+- 上述测试必须能在 pre-fix 实现上失败（per `Prevention` 段）。
+
+### 8. Wrong vs Correct
+
+#### Wrong（更早一代实现：catch 全静默）
 
 ```typescript
-// src/aggregator/ai-aggregation.ts —— 旧实现
+// src/aggregator/ai-aggregation.ts —— v1（已废弃）
 try {
   const response = await client.chat(messages, { ... });
   // ...
@@ -127,21 +156,46 @@ try {
 }
 ```
 
-#### Correct
+#### Wrong（v2：只 log，但失败仍伪装成成功）
+
+```typescript
+// src/aggregator/ai-aggregation.ts —— v2（已废弃）
+try {
+  const response = await client.chat(messages, { ... });
+  // ...
+} catch (err) {
+  log(`[ai-aggregation] cleanResult failed: ${err instanceof Error ? err.message : String(err)}`);
+  return result;   // 调用方仍然看不到失败信号
+}
+```
+
+#### Correct（v3：当前契约）
 
 ```typescript
 import { log } from '../server/logger.js';
 
 try {
   const response = await client.chat(messages, { ... });
-  // ...
+  const cleanedText = response.content.trim();
+  if (!cleanedText) {
+    log(`[ai-aggregation] cleanResult failed: ${AI_AGGREGATION_EMPTY_RESPONSE_MESSAGE}`);
+    return {
+      result: applyFailPrefix(result, hasContent),
+      warning: buildFailureWarning(AI_AGGREGATION_EMPTY_RESPONSE_MESSAGE),
+    };
+  }
+  return { result: applySuccessPrefix(result, hasContent, cleanedText) };
 } catch (err) {
-  log(
-    `[ai-aggregation] cleanResult failed: ${err instanceof Error ? err.message : String(err)}`,
-  );
-  return result;
+  const rawMessage = err instanceof Error ? err.message : String(err);
+  log(`[ai-aggregation] cleanResult failed: ${rawMessage}`);
+  return {
+    result: applyFailPrefix(result, hasContent),
+    warning: buildFailureWarning(rawMessage),   // message 经 Array.from + slice(0, 50)
+  };
 }
 ```
+
+`maybeRunAIAggregation` 端将每条 `warning` push 到累积数组，最后 `warnings: [...response.warnings, ...accumulated]` 回填。
 
 ## Role Mapping
 
