@@ -128,6 +128,36 @@ cp .env.example .env
 
 黑名单匹配采用父域匹配：如果黑名单中包含 `example.com`，则 `example.com`、`www.example.com` 以及更深层子域都会命中。命中后结果会直接从最终 `search` 返回中移除，不参与最终排序输出。
 
+## AI Aggregation 调试
+
+当 `mode=AIAggregation` 行为异常（例如「请求似乎没有真正到达上游 AI API」），仓库自带一个独立本地 HTTP 网关脚本可以肉眼看到流量。
+
+使用步骤：
+
+1. 启动网关（默认监听 `127.0.0.1:8787`，默认把 `AI_BASE_URL` 作为上游）：
+
+   ```bash
+   npm run proxy
+   ```
+
+   也可显式覆盖：
+
+   ```bash
+   node scripts/ai-proxy.mjs --port 8787 --upstream https://api-inference.modelscope.ai --log .trellis/.runtime/ai-proxy.log
+   ```
+
+2. 在准备运行 MCP 服务器的 shell 里，把 `AI_BASE_URL` 临时指向网关：
+
+   ```bash
+   export AI_BASE_URL=http://127.0.0.1:8787
+   ```
+
+3. 触发一次 `search` 且 `mode=AIAggregation`。
+
+4. 查看日志文件 `.trellis/.runtime/ai-proxy.log`，每次请求与响应各一行 JSONL（`dir=req` / `dir=res`），同时 stderr 会打印简短摘要（`[req] <id> <method> <url> body=<bytes>` / `[res] <id> <status> <durationMs>ms body=<bytes>`）。如果完全没有 `dir=req` 行，说明 SDK 没真正走到该 baseUrl；若有 req 但响应是 4xx/5xx，可直接看 `resBody` 定位上游错误。
+
+注意：日志包含完整请求/响应体与 headers（含 `Authorization`），仅适用于本机调试，请勿外发。日志路径在 `.trellis/.runtime/` 下，已被 `.trellis/.gitignore` 排除，不会进 git。
+
 ## 架构
 
 ```
