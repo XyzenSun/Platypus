@@ -4,6 +4,7 @@ import { GeminiAIClient } from '../lib/ai-clients/gemini.js';
 import { OpenAIAIClient } from '../lib/ai-clients/openai.js';
 import type { AIClient, Message } from '../lib/ai-clients/types.js';
 import type { SearchRequest, SearchResponse, SearchResult } from '../providers/search-types.js';
+import { log } from '../server/logger.js';
 
 export const AI_AGGREGATION_MISSING_CONFIG_ERROR =
   '当前没有配置AI，请配置AI_API_KEY，AI_BASE_URL，AI_MODEL，AI_FORMAT 后再使用，或使用 mode=BasicAggregation 无需使用AI，BasicAggregation 会占用大量上下文，如果你有Subagent能力，询问用户是否要配置，如果是，告知用户如何配置，如果否，且你有Subagent能力，询问用户是否要派发Subagent使用本工具并将去除噪声后的结果返回';
@@ -49,10 +50,7 @@ async function cleanResult(
   timeoutMs: number,
 ): Promise<SearchResult> {
   const prompt = buildPrompt(query, result, hasContent);
-  const messages: Message[] = [
-    { role: 'system', content: prompt },
-    { role: 'user', content: prompt },
-  ];
+  const messages: Message[] = [{ role: 'user', content: prompt }];
 
   try {
     const response = await client.chat(messages, {
@@ -69,7 +67,8 @@ async function cleanResult(
     }
 
     return { ...result, title: cleanedText };
-  } catch {
+  } catch (err) {
+    log(`[ai-aggregation] cleanResult failed: ${err instanceof Error ? err.message : String(err)}`);
     return result;
   }
 }
