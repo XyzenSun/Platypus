@@ -49,7 +49,7 @@ describe.skipIf(!hasAnyKey)('e2e: fetch tool (real API)', () => {
     await client.close();
   });
 
-  it('fetches a URL via available providers and returns byProvider view', async () => {
+  it('fetches a single URL and returns the best result with provider field', async () => {
     const requested: string[] = [];
     if (JINA_API_KEY) requested.push('jina');
     if (TAVILY_API_KEY) requested.push('tavily');
@@ -62,7 +62,7 @@ describe.skipIf(!hasAnyKey)('e2e: fetch tool (real API)', () => {
     const result = await client.callTool({
       name: 'fetch',
       arguments: {
-        urls: [targetUrl],
+        url: targetUrl,
         channels: requested,
         format: 'markdown',
         timeoutMs: 60000,
@@ -72,61 +72,36 @@ describe.skipIf(!hasAnyKey)('e2e: fetch tool (real API)', () => {
     expect(result.isError).toBeFalsy();
 
     const sc = result.structuredContent as {
-      results: Record<
-        string,
-        Record<
-          string,
-          { url: string; title?: string; content: string; format: string; fetchedAt: string }
-        >
-      >;
-      warnings: { provider: string; url: string; code: string; message: string }[];
+      url: string;
+      title?: string;
+      content: string;
+      format: string;
+      fetchedAt: string;
+      provider: string;
     };
 
-    expect(sc.results).toBeDefined();
-    expect(sc.results[targetUrl]).toBeDefined();
-    expect(Array.isArray(sc.warnings)).toBe(true);
+    expect(sc.url).toBeDefined();
+    expect(sc.content).toBeDefined();
+    expect(sc.provider).toBeDefined();
+    expect(typeof sc.provider).toBe('string');
+    expect(['markdown', 'text']).toContain(sc.format);
+    expect(typeof sc.fetchedAt).toBe('string');
 
-    const bucket = sc.results[targetUrl];
-    expect(bucket).toBeDefined();
-    if (!bucket) return;
+    // The best provider must have produced non-trivial content.
+    expect(sc.content.length).toBeGreaterThan(50);
 
-    // Print snippets so the human reviewer can see provider differences.
-    for (const provider of requested) {
-      const entry = bucket[provider];
-      if (entry) {
-        const snippet = entry.content.slice(0, 200).replace(/\n/g, ' ');
-        process.stderr.write(
-          `\n[fetch-e2e] ${provider} (${entry.format}, ${entry.content.length} chars): ${snippet}\n`,
-        );
-      } else {
-        const w = sc.warnings.find((x) => x.provider === provider && x.url === targetUrl);
-        process.stderr.write(
-          `\n[fetch-e2e] ${provider} failed: ${w?.code ?? 'unknown'} ${w?.message ?? ''}\n`,
-        );
-      }
-    }
-
-    // At least one provider must have produced non-trivial content.
-    const successes = requested
-      .map((p) => bucket[p])
-      .filter((e): e is NonNullable<typeof e> => !!e && e.content.length > 50);
-    expect(successes.length).toBeGreaterThan(0);
-
-    // Verify shape on each success.
-    for (const entry of successes) {
-      expect(typeof entry.url).toBe('string');
-      expect(typeof entry.content).toBe('string');
-      expect(['markdown', 'text']).toContain(entry.format);
-      expect(typeof entry.fetchedAt).toBe('string');
-    }
+    // Print the result so the human reviewer can see which provider won.
+    const snippet = sc.content.slice(0, 200).replace(/\n/g, ' ');
+    process.stderr.write(
+      `\n[fetch-e2e] best=${sc.provider} (${sc.format}, ${sc.content.length} chars): ${snippet}\n`,
+    );
   });
 
   it('errors when explicit channels list has no available providers', async () => {
-    // Pick a definitely-unconfigured channel name.
     const result = await client.callTool({
       name: 'fetch',
       arguments: {
-        urls: ['https://example.com/'],
+        url: 'https://example.com/',
         channels: ['nonexistent-provider'],
       },
     });
@@ -142,32 +117,25 @@ describe.skipIf(!hasAnyKey)('e2e: fetch tool (real API)', () => {
       const result = await client.callTool({
         name: 'fetch',
         arguments: {
-          urls: [targetUrl],
+          url: targetUrl,
           // no channels → use default fetch ordering (firecrawl + jina first)
         },
       });
       expect(result.isError).toBeFalsy();
       const sc = result.structuredContent as {
-        results: Record<
-          string,
-          Record<
-            string,
-            { url: string; title?: string; content: string; format: string; fetchedAt: string }
-          >
-        >;
+        url: string;
+        content: string;
+        format: string;
+        provider: string;
       };
-      const bucket = sc.results[targetUrl];
-      expect(bucket).toBeDefined();
-      // Firecrawl must have produced content (jina may fail in sandbox).
-      const fc = bucket?.firecrawl;
-      expect(fc).toBeDefined();
-      if (fc) {
-        expect(fc.content.length).toBeGreaterThan(50);
-        const snippet = fc.content.slice(0, 200).replace(/\n/g, ' ');
-        process.stderr.write(
-          `\n[fetch-e2e] firecrawl (${fc.format}, ${fc.content.length} chars): ${snippet}\n`,
-        );
-      }
+
+      expect(sc.provider).toBeDefined();
+      expect(sc.content.length).toBeGreaterThan(50);
+
+      const snippet = sc.content.slice(0, 200).replace(/\n/g, ' ');
+      process.stderr.write(
+        `\n[fetch-e2e] best=${sc.provider} (${sc.format}, ${sc.content.length} chars): ${snippet}\n`,
+      );
     },
   );
 });

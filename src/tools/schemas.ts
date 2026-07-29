@@ -75,7 +75,7 @@ export const SearchInputSchema = z.object({
 });
 
 export const FetchInputSchema = z.object({
-  urls: z.array(z.string().url()).min(1).max(20).describe('URLs to fetch (1-20 per call)'),
+  url: z.string().url().describe('The URL to fetch and extract content from.'),
   channels: z
     .array(z.string())
     .optional()
@@ -92,5 +92,5 @@ export const FetchInputSchema = z.object({
     .min(1000)
     .max(120000)
     .default(60000)
-    .describe('Per-provider per-URL timeout in ms.'),
+    .describe('Per-provider timeout in ms.'),
 });

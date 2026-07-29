@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { aggregateFetch } from '../../src/aggregator/fetch.js';
+import { aggregateFetchBest } from '../../src/aggregator/fetch.js';
 import { ProviderError } from '../../src/lib/errors.js';
 import type {
   FetchProvider,
@@ -33,40 +33,41 @@ function fakeResult(url: string, provider: string): RawFetchResult {
   };
 }
 
-describe('aggregateFetch', () => {
-  it('returns byProvider view for single URL across providers', async () => {
+describe('aggregateFetchBest', () => {
+  it('returns best result for single URL across multiple providers', async () => {
     const a = new StubProvider('alpha', async (url) => fakeResult(url, 'alpha'));
-    const b = new StubProvider('beta', async (url) => fakeResult(url, 'beta'));
+    const b = new StubProvider('beta', async (url) => ({
+      ...fakeResult(url, 'beta'),
+      content: `${'B'.repeat(5000)}`,
+    }));
 
-    const response = await aggregateFetch(baseParams, [a, b]);
+    const response = await aggregateFetchBest('https://example.com/a', baseParams, [a, b]);
 
-    expect(Object.keys(response.results)).toEqual(['https://example.com/a']);
-    const bucket = response.results['https://example.com/a'];
-    expect(bucket).toBeDefined();
-    expect(bucket?.alpha?.content).toBe('alpha: content for https://example.com/a');
-    expect(bucket?.beta?.content).toBe('beta: content for https://example.com/a');
-    expect(response.warnings).toEqual([]);
+    expect(response.best).not.toBeNull();
+    // beta has longer content → higher score
+    expect(response.best?.provider).toBe('beta');
+    expect(response.best?.url).toBe('https://example.com/a');
+    expect(response.best?.content.length).toBe(5000);
+    expect(response.failures).toHaveLength(0);
   });
 
-  it('partial success: one provider fails, others still return', async () => {
+  it('partial success: one provider fails, best is from the successful provider', async () => {
     const ok = new StubProvider('ok', async (url) => fakeResult(url, 'ok'));
     const bad = new StubProvider('bad', async () => {
       throw new ProviderError('bad', 'NETWORK', '503', 'service unavailable');
     });
 
-    const response = await aggregateFetch(baseParams, [ok, bad]);
+    const response = await aggregateFetchBest('https://example.com/a', baseParams, [ok, bad]);
 
-    expect(response.results['https://example.com/a']?.ok).toBeDefined();
-    expect(response.results['https://example.com/a']?.bad).toBeUndefined();
-    expect(response.warnings).toHaveLength(1);
-    expect(response.warnings[0]).toMatchObject({
-      provider: 'bad',
-      url: 'https://example.com/a',
-      code: '503',
-    });
+    expect(response.best).not.toBeNull();
+    expect(response.best?.provider).toBe('ok');
+    expect(response.best?.content).toBe('ok: content for https://example.com/a');
+    expect(response.failures).toHaveLength(1);
+    expect(response.failures[0]?.provider).toBe('bad');
+    expect(response.failures[0]?.code).toBe('503');
   });
 
-  it('all providers fail for a URL: empty bucket + warnings per provider', async () => {
+  it('all providers fail: best is null and failures list all errors', async () => {
     const a = new StubProvider('a', async () => {
       throw new ProviderError('a', 'NETWORK', '500', 'oops');
     });
@@ -74,48 +75,70 @@ describe('aggregateFetch', () => {
       throw new ProviderError('b', 'QUOTA', '402', 'payment required');
     });
 
-    const response = await aggregateFetch(baseParams, [a, b]);
+    const response = await aggregateFetchBest('https://example.com/a', baseParams, [a, b]);
 
-    expect(response.results['https://example.com/a']).toEqual({});
-    expect(response.warnings).toHaveLength(2);
-    const codes = response.warnings.map((w) => w.code).sort();
+    expect(response.best).toBeNull();
+    expect(response.failures).toHaveLength(2);
+    const codes = response.failures.map((f) => f.code).sort();
     expect(codes).toEqual(['402', '500']);
   });
 
-  it('multiple URLs: each gets its own provider dict', async () => {
-    const params: NormalizedFetchParams = {
-      ...baseParams,
-      urls: ['https://example.com/a', 'https://example.com/b'],
-    };
-    const p = new StubProvider('p', async (url) => fakeResult(url, 'p'));
+  it('empty content candidates are excluded; valid candidate is selected', async () => {
+    const empty = new StubProvider('empty', async (url) => ({
+      ...fakeResult(url, 'empty'),
+      content: '',
+    }));
+    const valid = new StubProvider('valid', async (url) => fakeResult(url, 'valid'));
 
-    const response = await aggregateFetch(params, [p]);
+    const response = await aggregateFetchBest('https://example.com/a', baseParams, [empty, valid]);
 
-    expect(Object.keys(response.results).sort()).toEqual([
-      'https://example.com/a',
-      'https://example.com/b',
+    expect(response.best).not.toBeNull();
+    expect(response.best?.provider).toBe('valid');
+    expect(response.failures).toHaveLength(1);
+    expect(response.failures[0]?.provider).toBe('empty');
+  });
+
+  it('blocked page candidates are excluded; valid candidate is selected', async () => {
+    const blocked = new StubProvider('blocked', async (url) => ({
+      ...fakeResult(url, 'blocked'),
+      title: 'Access Denied',
+      content: 'You have been blocked by the security system.',
+    }));
+    const valid = new StubProvider('valid', async (url) => ({
+      ...fakeResult(url, 'valid'),
+      content: 'Short but valid content',
+    }));
+
+    const response = await aggregateFetchBest('https://example.com/a', baseParams, [
+      blocked,
+      valid,
     ]);
-    expect(response.results['https://example.com/a']?.p?.url).toBe('https://example.com/a');
-    expect(response.results['https://example.com/b']?.p?.url).toBe('https://example.com/b');
+
+    expect(response.best).not.toBeNull();
+    expect(response.best?.provider).toBe('valid');
+    expect(response.failures).toHaveLength(1);
+    expect(response.failures[0]?.provider).toBe('blocked');
+    expect(response.failures[0]?.code).toBe('NO_CONTENT');
   });
 
   it('throws when no providers given', async () => {
-    await expect(aggregateFetch(baseParams, [])).rejects.toThrow(
+    await expect(aggregateFetchBest('https://example.com/a', baseParams, [])).rejects.toThrow(
       'No fetch channels available for the given configuration.',
     );
   });
 
-  it('non-ProviderError exceptions are recorded as UNKNOWN warnings', async () => {
+  it('non-ProviderError exceptions are recorded as failures with UNKNOWN code', async () => {
     const p = new StubProvider('p', async () => {
       throw new Error('totally generic boom');
     });
 
-    const response = await aggregateFetch(baseParams, [p]);
+    const response = await aggregateFetchBest('https://example.com/a', baseParams, [p]);
 
-    expect(response.warnings).toHaveLength(1);
-    expect(response.warnings[0]?.code).toBe('UNKNOWN');
-    expect(response.warnings[0]?.provider).toBe('p');
-    expect(response.warnings[0]?.message).toContain('totally generic boom');
+    expect(response.best).toBeNull();
+    expect(response.failures).toHaveLength(1);
+    expect(response.failures[0]?.code).toBe('UNKNOWN');
+    expect(response.failures[0]?.provider).toBe('p');
+    expect(response.failures[0]?.message).toContain('totally generic boom');
   });
 
   it('runs in parallel: total time roughly equals slowest call, not sum', async () => {
@@ -125,13 +148,49 @@ describe('aggregateFetch', () => {
     });
     const slow2 = new StubProvider('slow2', async (url) => {
       await new Promise((r) => setTimeout(r, 80));
-      return fakeResult(url, 'slow2');
+      return { ...fakeResult(url, 'slow2'), content: 'B'.repeat(5000) };
     });
 
     const start = Date.now();
-    await aggregateFetch(baseParams, [slow, slow2]);
+    const response = await aggregateFetchBest('https://example.com/a', baseParams, [slow, slow2]);
     const elapsed = Date.now() - start;
     // Sequential would be ~160ms; parallel should be ~80-120ms. Allow generous slack.
     expect(elapsed).toBeLessThan(150);
+    expect(response.best).not.toBeNull();
+  });
+
+  it('selects the candidate with the longest content as best', async () => {
+    const short = new StubProvider('short', async (url) => ({
+      ...fakeResult(url, 'short'),
+      content: 'Short',
+    }));
+    const long = new StubProvider('long', async (url) => ({
+      ...fakeResult(url, 'long'),
+      content: 'A'.repeat(5000),
+    }));
+
+    const response = await aggregateFetchBest('https://example.com/a', baseParams, [short, long]);
+
+    expect(response.best?.provider).toBe('long');
+  });
+
+  it('tie-breaks by DEFAULT_FETCH_PRIORITY when content length is equal', async () => {
+    const sameContent = 'X'.repeat(200);
+    const jina = new StubProvider('jina', async (url) => ({
+      ...fakeResult(url, 'jina'),
+      content: sameContent,
+    }));
+    const firecrawl = new StubProvider('firecrawl', async (url) => ({
+      ...fakeResult(url, 'firecrawl'),
+      content: sameContent,
+    }));
+
+    const response = await aggregateFetchBest('https://example.com/a', baseParams, [
+      jina,
+      firecrawl,
+    ]);
+
+    // firecrawl is at index 0 in DEFAULT_FETCH_PRIORITY, jina at index 1
+    expect(response.best?.provider).toBe('firecrawl');
   });
 });

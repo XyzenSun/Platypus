@@ -1,82 +1,76 @@
-import { ProviderError } from '../lib/errors.js';
 import type {
+  FetchBestResponse,
+  FetchBestResult,
   FetchProvider,
-  FetchResponse,
-  FetchWarning,
   NormalizedFetchParams,
   RawFetchResult,
 } from '../providers/fetch-types.js';
+import type { FetchCandidate } from './fetch-diagnostics-types.js';
+import { buildFetchCandidate, selectBestCandidate } from './fetch-diagnostics.js';
 
 /**
- * Concurrently fetch every URL across every selected provider via Promise.allSettled.
- * Returns a byProvider view: results[url][provider] = RawFetchResult.
- * Single-provider failures become warnings; the rest still return.
+ * Concurrently fetch a single URL across all selected providers via Promise.allSettled,
+ * then select the highest-quality valid result using the diagnostic model.
+ *
+ * Returns `{ best, failures }`:
+ *   - `best` is the highest-quality `FetchBestResult` or null when no provider succeeded.
+ *   - `failures` is a per-provider error summary list (not exposed to callers; used
+ *     internally by the tool layer to compose an error message).
  */
-export async function aggregateFetch(
+export async function aggregateFetchBest(
+  url: string,
   params: NormalizedFetchParams,
   providers: FetchProvider[],
-): Promise<FetchResponse> {
+): Promise<FetchBestResponse> {
   if (providers.length === 0) {
     throw new Error('No fetch channels available for the given configuration.');
   }
 
-  // Build (url, provider) tasks for parallel execution.
-  const tasks: { url: string; provider: FetchProvider }[] = [];
-  for (const url of params.urls) {
-    for (const provider of providers) {
-      tasks.push({ url, provider });
-    }
-  }
-
+  // Fire all provider calls in parallel.
   const settled = await Promise.allSettled(
-    tasks.map((t) =>
-      t.provider
-        .fetch(t.url, params)
-        .then((result) => ({ url: t.url, provider: t.provider.id, result })),
-    ),
+    providers.map((provider) => provider.fetch(url, params)),
   );
 
-  // Pre-seed empty per-url buckets so callers can see "URL was attempted but all failed".
-  const results: FetchResponse['results'] = {};
-  for (const url of params.urls) results[url] = {};
-
-  const warnings: FetchWarning[] = [];
-
-  for (let i = 0; i < settled.length; i++) {
+  // Convert each outcome into a FetchCandidate via the diagnostic model.
+  const candidates: FetchCandidate[] = providers.map((provider, i) => {
     const outcome = settled[i];
-    const task = tasks[i];
-    if (!outcome || !task) continue;
-
-    if (outcome.status === 'fulfilled') {
-      const { url, provider, result } = outcome.value;
-      const bucket = results[url];
-      if (bucket) bucket[provider] = result;
-      continue;
+    if (!outcome) {
+      // Defensive fallback; should never happen with Promise.allSettled.
+      return buildFetchCandidate(provider.id, {
+        status: 'rejected',
+        reason: new Error('missing outcome'),
+      });
     }
+    return buildFetchCandidate(provider.id, outcome);
+  });
 
-    const err = outcome.reason;
-    const taskUrl = task.url;
-    const taskProvider = task.provider.id;
-    if (err instanceof ProviderError) {
-      warnings.push({
-        provider: err.provider,
-        url: taskUrl,
-        code: err.code,
-        message: err.message,
-      });
-    } else {
-      const msg = err instanceof Error ? err.message : String(err);
-      warnings.push({
-        provider: taskProvider,
-        url: taskUrl,
-        code: 'UNKNOWN',
-        message: msg,
-      });
+  // Select the best valid candidate.
+  const best = selectBestCandidate(candidates, url);
+
+  // Build per-provider failure summaries for error reporting.
+  const failures: { provider: string; code: string; message: string }[] = [];
+  for (const candidate of candidates) {
+    if (!candidate.diagnostics.success) {
+      const code = candidate.diagnostics.providerErrorCode ?? 'NO_CONTENT';
+      const message =
+        candidate.diagnostics.providerErrorMessage ??
+        candidate.diagnostics.blockReason ??
+        (candidate.diagnostics.emptyContent ? 'empty content' : 'unknown failure');
+      failures.push({ provider: candidate.provider, code, message });
     }
   }
 
-  return { results, warnings };
+  if (best === null || best.result === null) {
+    return { best: null, failures };
+  }
+
+  const bestResult: FetchBestResult = {
+    ...best.result,
+    provider: best.provider,
+  };
+
+  return { best: bestResult, failures };
 }
 
-// Re-export for tools/fetch.ts test convenience.
+// Re-export for test convenience.
 export type { RawFetchResult };
