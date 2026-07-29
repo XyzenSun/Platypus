@@ -1,372 +1,204 @@
 > ## Documentation Index
 > Fetch the complete documentation index at: https://docs.tavily.com/llms.txt
-> Use this file to discover all available pages before exploring further.
+> Primary API reference: https://docs.tavily.com/documentation/api-reference/endpoint/extract
+> Help article: https://help.tavily.com/articles/8721959612-what-is-the-tavily-extract-api
 
 # Tavily Extract
 
-> Extract web page content from one or more specified URLs using Tavily Extract.
+Tavily Extract 用于对一个或多个指定 URL 抽取网页内容。当前项目的 fetch adapter 使用它作为 `tavily` 抓取 provider。
 
+---
 
+## 1. Endpoint
 
-## OpenAPI
+```http
+POST https://api.tavily.com/extract
+```
 
-````yaml POST /extract
-openapi: 3.0.3
-info:
-  title: Tavily Search and Extract API
-  description: >-
-    Our REST API provides seamless access to Tavily Search, a powerful search
-    engine for LLM agents, and Tavily Extract, an advanced web scraping solution
-    optimized for LLMs.
-  version: 1.0.0
-servers:
-  - url: https://api.tavily.com/
-security: []
-tags:
-  - name: Search
-  - name: Extract
-  - name: Crawl
-  - name: Map
-  - name: Research
-  - name: Usage
-paths:
-  /extract:
-    post:
-      summary: Retrieve raw web content from specified URLs
-      description: >-
-        Extract web page content from one or more specified URLs using Tavily
-        Extract.
-      requestBody:
-        description: Parameters for the Tavily Extract request.
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                urls:
-                  oneOf:
-                    - type: string
-                      description: The URL to extract content from.
-                      example: https://en.wikipedia.org/wiki/Artificial_intelligence
-                    - type: array
-                      items:
-                        type: string
-                      description: A list of URLs to extract content from.
-                      example:
-                        - https://en.wikipedia.org/wiki/Artificial_intelligence
-                        - https://en.wikipedia.org/wiki/Machine_learning
-                        - https://en.wikipedia.org/wiki/Data_science
-                query:
-                  type: string
-                  description: >-
-                    User intent for reranking extracted content chunks. When
-                    provided, chunks are reranked based on relevance to this
-                    query.
-                chunks_per_source:
-                  type: integer
-                  description: >-
-                    Chunks are short content snippets (maximum 500 characters
-                    each) pulled directly from the source. Use
-                    `chunks_per_source` to define the maximum number of relevant
-                    chunks returned per source and to control the `raw_content`
-                    length. Chunks will appear in the `raw_content` field as:
-                    `<chunk 1> [...] <chunk 2> [...] <chunk 3>`. Available only
-                    when `query` is provided. Must be between 1 and 5.
-                  minimum: 1
-                  maximum: 5
-                  default: 3
-                extract_depth:
-                  type: string
-                  description: >-
-                    The depth of the extraction process. `advanced` extraction
-                    retrieves more data, including tables and embedded content,
-                    with higher success but may increase latency.`basic`
-                    extraction costs 1 credit per 5 successful URL extractions,
-                    while `advanced` extraction costs 2 credits per 5 successful
-                    URL extractions.
-                  enum:
-                    - basic
-                    - advanced
-                  default: basic
-                include_images:
-                  type: boolean
-                  description: >-
-                    Include a list of images extracted from the URLs in the
-                    response. Default is false.
-                  default: false
-                include_favicon:
-                  type: boolean
-                  description: Whether to include the favicon URL for each result.
-                  default: false
-                format:
-                  type: string
-                  description: >-
-                    The format of the extracted web page content. `markdown`
-                    returns content in markdown format. `text` returns plain
-                    text and may increase latency.
-                  enum:
-                    - markdown
-                    - text
-                  default: markdown
-                timeout:
-                  type: number
-                  format: float
-                  description: >-
-                    Maximum time in seconds to wait for the URL extraction
-                    before timing out. Must be between 1.0 and 60.0 seconds. If
-                    not specified, default timeouts are applied based on
-                    extract_depth: 10 seconds for basic extraction and 30
-                    seconds for advanced extraction.
-                  minimum: 1
-                  maximum: 60
-                  default: None
-                include_usage:
-                  type: boolean
-                  description: >-
-                    Whether to include credit usage information in the response.
-                    `NOTE:`The value may be 0 if the total successful URL
-                    extractions has not yet reached 5 calls. See our [Credits &
-                    Pricing
-                    documentation](https://docs.tavily.com/documentation/api-credits)
-                    for details.
-                  default: false
-              required:
-                - urls
-      responses:
-        '200':
-          description: Extraction results returned successfully
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  results:
-                    type: array
-                    description: A list of extracted content from the provided URLs.
-                    items:
-                      type: object
-                      properties:
-                        url:
-                          type: string
-                          description: The URL from which the content was extracted.
-                          example: >-
-                            https://en.wikipedia.org/wiki/Artificial_intelligence
-                        raw_content:
-                          type: string
-                          description: >-
-                            The full content extracted from the page. When
-                            `query` is provided, contains the top-ranked chunks
-                            joined by `[...]` separator.
-                          example: >-
-                            "Jump to content\nMain
-                            menu\nSearch\nAppearance\nDonate\nCreate
-                            account\nLog in\nPersonal tools\n        Photograph
-                            your local culture, help Wikipedia and win!\nToggle
-                            the table of contents\nArtificial intelligence\n161
-                            languages\nArticle\nTalk\nRead\nView source\nView
-                            history\nTools\nFrom Wikipedia, the free
-                            encyclopedia\n\"AI\" redirects here. For other uses,
-                            see AI (disambiguation) and Artificial intelligence
-                            (disambiguation).\nPart of a series on\nArtificial
-                            intelligence (AI)\nshow\nMajor
-                            goals\nshow\nApproaches\nshow\nApplications\nshow\nPhilosophy\nshow\nHistory\nshow\nGlossary\nvte\nArtificial
-                            intelligence (AI), in its broadest sense, is
-                            intelligence exhibited by machines, particularly
-                            computer systems. It is a field of research in
-                            computer science that develops and studies methods
-                            and software that enable machines to perceive their
-                            environment and use learning and intelligence to
-                            take actions that maximize their chances of
-                            achieving defined goals.[1] Such machines may be
-                            called AIs.\nHigh-profile applications of AI include
-                            advanced web search engines (e.g., Google Search);
-                            recommendation systems (used by YouTube, Amazon, and
-                            Netflix); virtual assistants (e.g., Google
-                            Assistant, Siri, and Alexa); autonomous vehicles
-                            (e.g., Waymo); generative and creative tools (e.g.,
-                            ChatGPT and AI art); and superhuman play and
-                            analysis in strategy games (e.g., chess and
-                            Go)...................
-                        images:
-                          type: array
-                          example: []
-                          description: >-
-                            This is only available if `include_images` is set to
-                            `true`. A list of image URLs extracted from the
-                            page.
-                          items:
-                            type: string
-                        favicon:
-                          type: string
-                          description: The favicon URL for the result.
-                          example: >-
-                            https://en.wikipedia.org/static/favicon/wikipedia.ico
-                  failed_results:
-                    type: array
-                    example: []
-                    description: A list of URLs that could not be processed.
-                    items:
-                      type: object
-                      properties:
-                        url:
-                          type: string
-                          description: The URL that failed to be processed.
-                        error:
-                          type: string
-                          description: >-
-                            An error message describing why the URL couldn't be
-                            processed.
-                  response_time:
-                    type: number
-                    format: float
-                    description: Time in seconds it took to complete the request.
-                    example: 0.02
-                  usage:
-                    type: object
-                    description: Credit usage details for the request.
-                    example:
-                      credits: 1
-                  request_id:
-                    type: string
-                    description: >-
-                      A unique request identifier you can share with customer
-                      support to help resolve issues with specific requests.
-                    example: 123e4567-e89b-12d3-a456-426614174111
-        '400':
-          description: Bad Request
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  detail:
-                    type: object
-                    properties:
-                      error:
-                        type: string
-              example:
-                detail:
-                  error: <400 Bad Request, (e.g Max 20 URLs are allowed.)>
-        '401':
-          description: Unauthorized - Your API key is wrong or missing.
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  detail:
-                    type: object
-                    properties:
-                      error:
-                        type: string
-              example:
-                detail:
-                  error: 'Unauthorized: missing or invalid API key.'
-        '429':
-          description: Too many requests - Rate limit exceeded
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  detail:
-                    type: object
-                    properties:
-                      error:
-                        type: string
-              example:
-                detail:
-                  error: >-
-                    Your request has been blocked due to excessive requests.
-                    Please reduce rate of requests.
-        '432':
-          description: Key limit or Plan Limit exceeded
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  detail:
-                    type: object
-                    properties:
-                      error:
-                        type: string
-              example:
-                detail:
-                  error: >-
-                    <432 Custom Forbidden Error (e.g This request exceeds your
-                    plan's set usage limit. Please upgrade your plan or contact
-                    support@tavily.com)>
-        '433':
-          description: PayGo limit exceeded
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  detail:
-                    type: object
-                    properties:
-                      error:
-                        type: string
-              example:
-                detail:
-                  error: >-
-                    This request exceeds the pay-as-you-go limit. You can
-                    increase your limit on the Tavily dashboard.
-        '500':
-          description: Internal Server Error - We had a problem with our server.
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  detail:
-                    type: object
-                    properties:
-                      error:
-                        type: string
-              example:
-                detail:
-                  error: Internal Server Error
-      security:
-        - bearerAuth: []
-      x-codeSamples:
-        - lang: python
-          label: Python SDK
-          source: >-
-            from tavily import TavilyClient
+当前项目代码：
 
+- Adapter：`src/providers/tavily-fetch.ts`
+- 常量默认值：`https://api.tavily.com/extract`
+- 可选覆盖：`baseUrl` 会去掉末尾 `/` 后拼接 `/extract`
 
-            tavily_client = TavilyClient(api_key="tvly-YOUR_API_KEY")
+---
 
-            response =
-            tavily_client.extract("https://en.wikipedia.org/wiki/Artificial_intelligence")
+## 2. Auth
 
+```http
+Authorization: Bearer tvly-YOUR_API_KEY
+Content-Type: application/json
+```
 
-            print(response)
-        - lang: javascript
-          label: JavaScript SDK
-          source: >-
-            const { tavily } = require("@tavily/core");
+OpenAPI 中认证方式为 Bearer auth；API key 示例为 `tvly-YOUR_API_KEY`。
 
+当前项目对应关系：
 
-            const tvly = tavily({ apiKey: "tvly-YOUR_API_KEY" });
+```ts
+headers: {
+  'Content-Type': 'application/json',
+  Authorization: `Bearer ${apiKey}`,
+}
+```
 
-            const response = await
-            tvly.extract("https://en.wikipedia.org/wiki/Artificial_intelligence");
+---
 
+## 3. Request Body
 
-            console.log(response);
-components:
-  securitySchemes:
-    bearerAuth:
-      type: http
-      scheme: bearer
-      bearerFormat: JWT
-      description: >-
-        Bearer authentication header in the form Bearer <token>, where <token>
-        is your Tavily API key (e.g., Bearer tvly-YOUR_API_KEY).
+官方字段摘要：
 
-````
+| 字段 | 类型 | 必填 | 说明 |
+|---|---|---:|---|
+| `urls` | `string \| string[]` | 是 | 单个 URL 或 URL 数组；帮助文档说明最多 20 个 URL。 |
+| `query` | `string` | 否 | 用于内容 chunk rerank 的用户意图。 |
+| `chunks_per_source` | `number` | 否 | `query` 存在时可用，1-5；控制每个来源返回的相关片段数。 |
+| `extract_depth` | `basic \| advanced` | 否 | 默认 `basic`；`advanced` 成功率/内容覆盖更高但更慢、成本更高。 |
+| `format` | `markdown \| text` | 否 | 默认 `markdown`；`text` 可能增加延迟。 |
+| `include_images` | `boolean` | 否 | 是否返回图片 URL。 |
+| `include_favicon` | `boolean` | 否 | 是否返回 favicon。 |
+| `timeout` | `number` | 否 | 秒，1-60；默认随 `extract_depth` 变化。 |
+| `include_usage` | `boolean` | 否 | 是否返回 credit usage。 |
+
+当前项目发送：
+
+```json
+{
+  "urls": ["https://example.com/"],
+  "format": "markdown",
+  "extract_depth": "basic"
+}
+```
+
+项目中的 `format` 来自统一 fetch 入参 `params.format`，`urls` 即使单 URL 也以数组形式发送。
+
+---
+
+## 4. Success Response Fields
+
+HTTP 200 时，Tavily Extract 返回结构：
+
+```json
+{
+  "results": [
+    {
+      "url": "https://example.com/",
+      "raw_content": "Example Domain\n...",
+      "images": [],
+      "favicon": "https://example.com/favicon.ico"
+    }
+  ],
+  "failed_results": [],
+  "response_time": 0.42,
+  "usage": { "credits": 1 },
+  "request_id": "123e4567-e89b-12d3-a456-426614174111"
+}
+```
+
+字段说明：
+
+| 字段 | 说明 | 当前项目是否使用 |
+|---|---|---:|
+| `results[].url` | 成功抽取的 URL | 是，映射到 `RawFetchResult.url` |
+| `results[].raw_content` | 抽取正文；当使用 `query` 时可能是 chunk 拼接内容 | 是，映射到 `RawFetchResult.content` |
+| `results[].images` | 图片 URL，仅 `include_images=true` 时 | 否 |
+| `results[].favicon` | favicon，仅 `include_favicon=true` 时 | 否 |
+| `failed_results[]` | 单 URL 失败列表 | 仅当 `results[0]` 缺失时读取第一个 error |
+| `response_time` | 请求耗时 | 否 |
+| `usage` | credit 使用量 | 否 |
+| `request_id` | 支持排查用请求 ID | 否 |
+
+当前项目成功映射：
+
+```ts
+return {
+  url: first.url,
+  content: first.raw_content ?? '',
+  format: params.format,
+  fetchedAt: new Date().toISOString(),
+};
+```
+
+注意：当前 adapter 对 `raw_content` 为空字符串仍返回 fulfilled；后续 best-result 聚合应将空内容视为无效候选。
+
+---
+
+## 5. Failure / Error Fields
+
+### 5.1 Request-level HTTP errors
+
+官方 OpenAPI 列出的典型非 2xx：
+
+| HTTP | 语义 | 响应字段 |
+|---:|---|---|
+| 400 | Bad Request，例如 URL 数量超限 | `detail.error` |
+| 401 | API key 缺失或错误 | `detail.error` |
+| 429 | rate limit | `detail.error` |
+| 432 | key limit / plan limit exceeded | `detail.error` |
+| 433 | PayGo limit exceeded | `detail.error` |
+| 500 | 服务端错误 | `detail.error` |
+
+当前项目处理：非 OK 时读取 `res.text()`，用 `classifyHttpStatus(res.status)` 分类并抛 `ProviderError('tavily', category, String(status), textOrStatusText)`。
+
+### 5.2 Per-URL extraction failures
+
+HTTP 200 仍可能存在单 URL 失败：
+
+```json
+{
+  "results": [],
+  "failed_results": [
+    {
+      "url": "https://blocked.example/",
+      "error": "Unable to extract content from URL"
+    }
+  ]
+}
+```
+
+当前项目当 `results[0]` 缺失时：
+
+- 读取 `failed_results[0].error`
+- 抛 `ProviderError('tavily', 'USER_ERROR', 'NO_RESULTS', message)`
+
+---
+
+## 6. Blocked / 401 / 403 / CDN / Anti-bot Signals
+
+官方文档没有提供结构化的 `isBlocked` / `isCloudflare` 字段。
+
+可用信号：
+
+| 场景 | 可用信号 | 备注 |
+|---|---|---|
+| API key 错误 | request-level HTTP 401 + `detail.error` | 这是 Tavily API 认证失败，不代表目标站点 401。 |
+| 额度/计划限制 | HTTP 432 / 433 | 项目分类为 quota 类错误。 |
+| rate limit | HTTP 429 | 项目分类为 network/retry 类错误。 |
+| 目标 URL 处理失败 | HTTP 200 + `failed_results[].error` | error 是字符串，官方未保证结构化状态码。 |
+| 空抽取 | `results[].raw_content` 缺失或空字符串 | 当前 adapter 会返回空内容；聚合层需二次判定。 |
+| CDN/Cloudflare/反爬 | `failed_results[].error` 文本，或 `raw_content`/标题中出现 challenge/blocked 文案 | 无专用字段，只能启发式判断。 |
+
+---
+
+## 7. Current Adapter Relation
+
+| 项目字段/行为 | Tavily 字段/行为 |
+|---|---|
+| `provider id` | `tavily` |
+| endpoint | `POST /extract` |
+| auth | `Authorization: Bearer ${apiKey}` |
+| body URL | `urls: [url]` |
+| body format | `format: params.format` |
+| depth | 固定 `extract_depth: 'basic'` |
+| success URL | `results[0].url` |
+| success content | `results[0].raw_content ?? ''` |
+| title | Tavily Extract 不返回 title，当前不设置 |
+| error if no results | `failed_results[0].error` -> `ProviderError(..., 'NO_RESULTS', ...)` |
+| timeout | 使用 `AbortSignal.timeout(params.timeoutMs)`，不是 Tavily body 的 `timeout` 字段 |
+
+---
+
+## 8. Notes for Best-result Fetch
+
+- 不要把 `Promise fulfilled` 等同成功；`raw_content` 为空时应视为无效候选。
+- Tavily 没有结构化目标 HTTP status；阻挡页主要依赖 `failed_results[].error` 和内容文本特征。
+- 若后续要提高成功率，可考虑实测 `extract_depth: 'advanced'`，但这会改变成本与延迟，应单独决策。
