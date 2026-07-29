@@ -1,0 +1,7 @@
+{"file":".trellis/spec/backend/index.md","reason":"Backend pre-development checklist for this TypeScript MCP server task."}
+{"file":".trellis/spec/backend/directory-structure.md","reason":"Understand backend module layout and import conventions before modifying fetch aggregator/tool/provider types."}
+{"file":".trellis/spec/backend/error-handling.md","reason":"Fetch provider failures, ProviderError handling, and final error semantics are central to this task."}
+{"file":".trellis/spec/backend/provider-conventions.md","reason":"Fetch provider normalization and adapter/aggregator boundary conventions affect implementation."}
+{"file":".trellis/spec/backend/quality-guidelines.md","reason":"Testing, linting, and TypeScript quality requirements for implementation."}
+{"file":".trellis/spec/backend/scoring-strategies.md","reason":"Existing scoring strategy conventions inform internal best-result scoring design."}
+{"file":".trellis/tasks/07-29-multi-platform-fetch-best-result/research/fetch-provider-success-and-blocking.md","reason":"Research on provider success/failure fields and blocked-page detection required for implementation."}
