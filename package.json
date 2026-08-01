@@ -1,6 +1,6 @@
 {
   "name": "@xyzensun/platypus-mcp",
-  "version": "0.0.2",
+  "version": "0.1.0",
   "type": "module",
   "description": "Aggregated search MCP server (Brave, Exa, Tavily, Jina, SearXNG, Firecrawl)",
   "bin": {
