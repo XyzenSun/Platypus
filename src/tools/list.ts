@@ -8,7 +8,7 @@ export function registerListTool(server: McpServer, config: Config): void {
     'list',
     {
       title: 'List providers',
-      description: 'List all configured search and fetch providers with their capabilities.',
+      description: 'List all configured providers.',
       inputSchema: ListInputSchema.shape,
       annotations: {
         readOnlyHint: true,

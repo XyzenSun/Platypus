@@ -73,24 +73,3 @@ export const SearchInputSchema = z.object({
     .optional()
     .describe('Optional. Only return results with rank less than or equal to this value.'),
 });
-
-export const FetchInputSchema = z.object({
-  urls: z.array(z.string().url()).min(1).max(20).describe('URLs to fetch (1-20 per call)'),
-  channels: z
-    .array(z.string())
-    .optional()
-    .describe(
-      'Override fetch channels (subset of [firecrawl, jina, tavily, exa]). Omit to use the default fetch ordering.',
-    ),
-  format: z
-    .enum(['markdown', 'text'])
-    .default('markdown')
-    .describe('Output format. Some providers (Exa) always return text regardless.'),
-  timeoutMs: z
-    .number()
-    .int()
-    .min(1000)
-    .max(120000)
-    .default(60000)
-    .describe('Per-provider per-URL timeout in ms.'),
-});

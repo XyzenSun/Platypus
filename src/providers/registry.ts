@@ -1,25 +1,18 @@
 import type { Config, ProviderId } from '../config/types.js';
 import { GeminiAIClient } from '../lib/ai-clients/gemini.js';
 import { BraveSearchAdapter } from './brave.js';
-import { ExaFetchAdapter } from './exa-fetch.js';
 import { ExaSearchAdapter } from './exa.js';
-import type { FetchProvider } from './fetch-types.js';
-import { FirecrawlFetchAdapter } from './firecrawl-fetch.js';
 import { FirecrawlSearchAdapter } from './firecrawl.js';
 import { GeminiSearchAdapter } from './gemini.js';
-import { JinaFetchAdapter } from './jina-fetch.js';
 import { JinaSearchAdapter } from './jina.js';
 import { OllamaSearchAdapter } from './ollama.js';
 import type { SearchProvider } from './search-types.js';
 import { SearxngSearchAdapter } from './searxng.js';
-import { TavilyFetchAdapter } from './tavily-fetch.js';
 import { TavilySearchAdapter } from './tavily.js';
-import { PROVIDER_CAPABILITIES } from './types.js';
 
 export interface ListResult {
   [key: string]: unknown;
-  search: ProviderId[];
-  fetch: ProviderId[];
+  providers: ProviderId[];
 }
 
 export function buildRegistry(config: Config): ListResult {
@@ -36,12 +29,8 @@ export function buildRegistry(config: Config): ListResult {
 
   const configured = ALL_PROVIDERS.filter((p) => isConfigured(p, config));
 
-  const searchProviders = configured.filter((p) => PROVIDER_CAPABILITIES[p].search);
-  const fetchProviders = configured.filter((p) => PROVIDER_CAPABILITIES[p].fetch);
-
   return {
-    search: searchProviders,
-    fetch: fetchProviders,
+    providers: configured,
   };
 }
 
@@ -99,19 +88,6 @@ export function getSearchProviders(config: Config): SearchProvider[] {
   }
   if (config.ollama?.apiKey) {
     providers.push(new OllamaSearchAdapter(config.ollama.apiKey, config.ollama.baseUrl));
-  }
-  return providers;
-}
-
-export function getFetchProviders(config: Config): FetchProvider[] {
-  const providers: FetchProvider[] = [];
-  if (config.firecrawl?.apiKey) providers.push(new FirecrawlFetchAdapter(config.firecrawl.apiKey));
-  if (config.jina?.apiKey) providers.push(new JinaFetchAdapter(config.jina.apiKey));
-  if (config.tavily?.apiKey) {
-    providers.push(new TavilyFetchAdapter(config.tavily.apiKey, config.tavily.baseUrl));
-  }
-  if (config.exa?.apiKey) {
-    providers.push(new ExaFetchAdapter(config.exa.apiKey, config.exa.baseUrl));
   }
   return providers;
 }
