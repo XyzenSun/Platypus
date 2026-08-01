@@ -7,25 +7,26 @@ src/
     types.ts             # ProviderId union, Config interface
     env.ts               # loadConfig() — reads env vars, returns Config
   server/
-    server.ts            # createServer(): registers list/search/fetch MCP tools
+    server.ts            # createServer(): registers list/search MCP tools
     logger.ts            # log() — writes to stderr
   tools/
-    schemas.ts           # Zod schemas: ListInputSchema, SearchInputSchema, FetchInputSchema
-    list.ts / search.ts / fetch.ts  # MCP tool handlers
+    schemas.ts           # Zod schemas: ListInputSchema, SearchInputSchema
+    list.ts / search.ts  # MCP tool handlers
   providers/
-    types.ts             # PROVIDER_CAPABILITIES, DEFAULT_FETCH_PRIORITY
-    registry.ts          # buildRegistry(), getSearchProviders(), getFetchProviders()
     search-types.ts      # SearchProvider interface, SearchResult, NormalizedSearchParams
-    fetch-types.ts       # FetchProvider interface, RawFetchResult, NormalizedFetchParams
-    tavily.ts / exa.ts / gemini.ts           # search adapters
-    tavily-fetch.ts / jina-fetch.ts / exa-fetch.ts / firecrawl-fetch.ts  # fetch adapters
+    search-provider-utils.ts  # Shared compile/normalize helpers
+    registry.ts          # buildRegistry() -> { providers }, getSearchProviders()
+    CLAUDE.md            # Directory-local conventions for adding adapters
+    tavily.ts / exa.ts / gemini.ts / brave.ts / jina.ts
+    firecrawl.ts / searxng.ts / ollama.ts   # search adapters
   aggregator/
     scoring-types.ts     # ScoringStrategy interface, ProviderRanked type
     search.ts            # aggregateSearch()
-    fetch.ts             # aggregateFetch()
+    ai-aggregation.ts    # AI cleanup pass (mode=AIAggregation)
     strategies/
       rrf.ts             # RrfScoringStrategy (default, k=60)
       gemini-boost.ts    # GeminiBoostScoringStrategy
+      post-process.ts    # score post-processing (provider weights + domain blacklist)
   lib/
     errors.ts            # ProviderError, classifyHttpStatus(), classifyError()
     retry.ts             # withRetry()
@@ -33,9 +34,11 @@ src/
     ai-clients/
       types.ts           # AIClient interface
       gemini.ts          # GeminiAIClient (implemented)
-      openai.ts          # stub (PR6)
-      anthropic.ts       # stub (PR6)
+      openai.ts          # stub
+      anthropic.ts       # stub
 ```
+
+> **Removed in 0.0.x**: `src/tools/fetch.ts`, `src/aggregator/fetch.ts`, `src/providers/fetch-types.ts`, `src/providers/types.ts` (formerly `PROVIDER_CAPABILITIES` / `DEFAULT_FETCH_PRIORITY`), and the four `*-fetch.ts` adapter files were deleted when the fetch tool was deprecated. Do not recreate these paths unless reintroducing a fetch-shaped capability — and if you do, design the capability map fresh instead of restoring the legacy shape.
 
 ## Import Conventions
 
@@ -50,10 +53,11 @@ import { withRetry } from '../lib/retry.js';
 import { withRetry } from '../lib/retry';
 ```
 
-## Adding a New Provider
+## Adding a New Search Provider
 
 1. Add to `ProviderId` union in `src/config/types.ts`.
-2. Add entry to `PROVIDER_CAPABILITIES` in `src/providers/types.ts`.
-3. Add `isConfigured` case in `src/providers/registry.ts`.
-4. Add instantiation in `getSearchProviders()` or `getFetchProviders()` in `src/providers/registry.ts`.
-5. Add env var reading in `src/config/env.ts`.
+2. Add `isConfigured` case + `getSearchProviders()` instantiation in `src/providers/registry.ts`, and append the id to `ALL_PROVIDERS`.
+3. Add env var reading in `src/config/env.ts`.
+4. Add unit coverage in `tests/unit/registry.test.ts` (configuration filter) and `tests/unit/search-adapters.test.ts` (request mapping).
+
+> The legacy step "Add entry to `PROVIDER_CAPABILITIES` in `src/providers/types.ts`" is gone — that file was deleted along with the capability map. Capability tracking was dropped because every retained provider is search-only. If a future provider reintroduces a non-search capability, recreate a capability map at that point (designed around the new capability, not the legacy fetch shape).
