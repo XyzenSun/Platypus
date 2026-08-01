@@ -22,7 +22,7 @@ Before writing any code, read these files:
 |-------|-------------|
 | [Directory Structure](./directory-structure.md) | Module layout and import conventions |
 | [Error Handling](./error-handling.md) | ProviderError, error categories, retry |
-| [Provider Conventions](./provider-conventions.md) | Adding search/fetch providers |
+| [Provider Conventions](./provider-conventions.md) | Adding search providers, `list` tool output schema |
 | [Scoring Strategies](./scoring-strategies.md) | RRF, ScoringStrategy interface |
 | [Quality Guidelines](./quality-guidelines.md) | TypeScript, linting, testing |
 | [Logging Guidelines](./logging-guidelines.md) | Logger usage |

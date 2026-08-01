@@ -27,7 +27,7 @@ export function registerSearchTool(server: McpServer, config: Config): void {
     async (input) => {
       const params = SearchInputSchema.parse(input);
       const channelIds =
-        params.channels && params.channels.length > 0 ? params.channels : registry.search;
+        params.channels && params.channels.length > 0 ? params.channels : registry.providers;
       const providers = allProviders.filter((p) => channelIds.includes(p.id));
 
       if (providers.length === 0) {

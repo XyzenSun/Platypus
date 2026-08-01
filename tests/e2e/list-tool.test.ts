@@ -30,32 +30,30 @@ describe('e2e: list tool', () => {
     await client.close();
   });
 
-  it('exposes exactly 3 tools: search, fetch, list', async () => {
+  it('exposes exactly 2 tools: list and search', async () => {
     const { tools } = await client.listTools();
     const names = tools.map((t) => t.name).sort();
-    expect(names).toEqual(['fetch', 'list', 'search']);
+    expect(names).toEqual(['list', 'search']);
   });
 
   it('list tool returns expected shape with configured providers', async () => {
     const result = await client.callTool({ name: 'list', arguments: {} });
     expect(result.isError).toBeFalsy();
     const sc = result.structuredContent as Record<string, unknown>;
-    expect(Array.isArray(sc.search)).toBe(true);
-    expect(Array.isArray(sc.fetch)).toBe(true);
-    // with TAVILY_API_KEY + EXA_API_KEY, both should appear in search
-    expect(sc.search).toContain('tavily');
-    expect(sc.search).toContain('exa');
+    expect(Array.isArray(sc.providers)).toBe(true);
+    // with TAVILY_API_KEY + EXA_API_KEY, both should appear in providers
+    expect(sc.providers).toContain('tavily');
+    expect(sc.providers).toContain('exa');
   });
 
-  it('list tool with no providers returns empty arrays', async () => {
+  it('list tool with no providers returns empty array', async () => {
     const spawned = spawnMcpServer({});
     const emptyClient = spawned.client;
     await emptyClient.connect(spawned.transport);
     try {
       const result = await emptyClient.callTool({ name: 'list', arguments: {} });
       const sc = result.structuredContent as Record<string, unknown>;
-      expect(sc.search).toEqual([]);
-      expect(sc.fetch).toEqual([]);
+      expect(sc.providers).toEqual([]);
     } finally {
       await emptyClient.close();
     }

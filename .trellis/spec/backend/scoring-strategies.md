@@ -37,7 +37,7 @@ score(d) = Σ_provider  1 / (k + rank_p(d))     k = 60
 ### 1. Scope / Trigger
 - Trigger: search result response contract changed at the aggregator boundary because `SearchResult.id` must remain stable even when a provider returns an empty `url`.
 - Applies to: `RrfScoringStrategy.merge()` and every caller consuming aggregated `SearchResult[]`.
-- Does not apply to: fetch providers or Gemini's sentinel URL flow.
+- Does not apply to: Gemini's sentinel URL flow.
 
 ### 2. Signatures
 - Aggregator input:
@@ -155,7 +155,7 @@ Reference: `src/aggregator/search.ts:11` — `const defaultScoring = new GeminiB
 ### 1. Scope / Trigger
 - Trigger: aggregator response ranking now depends on startup-loaded env wiring and a remote blacklist contract, so code-spec depth is required for scoring + config boundaries.
 - Applies to: `src/aggregator/search.ts`, `src/aggregator/strategies/post-process.ts`, `src/config/env.ts`, `src/config/domain-blacklist.ts`, and callers of the search tool.
-- Does not apply to: provider adapter request mapping or fetch providers.
+- Does not apply to: provider adapter request mapping.
 
 ### 2. Signatures
 - Scoring wrapper factory:
