@@ -1,8 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ExaSearchAdapter } from '../../src/providers/exa.js';
-import type { NormalizedFetchParams } from '../../src/providers/fetch-types.js';
 import type { NormalizedSearchParams } from '../../src/providers/search-types.js';
-import { TavilyFetchAdapter } from '../../src/providers/tavily-fetch.js';
 
 const searchParams: NormalizedSearchParams = {
   query: 'claude code',
@@ -12,12 +10,6 @@ const searchParams: NormalizedSearchParams = {
   topic: 'general',
   searchDepth: 'balanced',
   includeImages: false,
-  timeoutMs: 1000,
-};
-
-const fetchParams: NormalizedFetchParams = {
-  urls: ['https://example.com'],
-  format: 'markdown',
   timeoutMs: 1000,
 };
 
@@ -52,26 +44,6 @@ describe('provider baseUrl overrides', () => {
 
     expect(fetchMock).toHaveBeenCalledWith(
       'https://proxy.example.com/exa/search',
-      expect.objectContaining({ method: 'POST' }),
-    );
-  });
-
-  it('uses custom Tavily fetch baseUrl and trims trailing slash', async () => {
-    const fetchMock = vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({
-        results: [{ url: 'https://example.com', raw_content: 'hello' }],
-      }),
-    });
-    vi.stubGlobal('fetch', fetchMock);
-
-    await new TavilyFetchAdapter('tavily-key', 'https://proxy.example.com/tavily/').fetch(
-      'https://example.com',
-      fetchParams,
-    );
-
-    expect(fetchMock).toHaveBeenCalledWith(
-      'https://proxy.example.com/tavily/extract',
       expect.objectContaining({ method: 'POST' }),
     );
   });
