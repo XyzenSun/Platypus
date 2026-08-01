@@ -1,25 +1,21 @@
 # Platypus
 
-聚合搜索 MCP 服务器，为 AI Agent 提供统一的搜索和网页抓取能力。
+聚合搜索 MCP 服务器，为 AI Agent 提供统一的搜索能力。
 
 ## 功能
 
-提供 3 个 MCP 工具：
+提供 2 个 MCP 工具：
 
 | 工具 | 说明 |
 |------|------|
-| `list` | 列出当前可用的 Provider 及其能力 |
+| `list` | 列出当前可用的 Provider |
 | `search` | 并发调用多个搜索引擎，先做 RRF 融合，再做统一的 score 后处理与域名黑名单过滤 |
-| `fetch` | 并发抓取 URL 内容，返回多个 Provider 的结果视图 (优化中 暂不支持)   |
 
 ## 支持的 Provider
 
-| 类型 | Provider |
-|------|---------|
-| 搜索 | Tavily、Exa、Brave、Jina、SearXNG、Firecrawl、Gemini AI |
-| 抓取 | Firecrawl、Jina Reader、Tavily Extract、Exa Contents |
-
-说明：并非所有 Provider 同时支持搜索与抓取，具体以 `list` 工具返回的当前可用能力为准。
+| Provider |
+|---------|
+| Tavily、Exa、Brave、Jina、SearXNG、Firecrawl、Gemini AI |
 
 ## 快速开始（推荐：npm 包）
 
@@ -144,18 +140,43 @@ npx @wong2/mcp-cli -c config.json call-tool platypus:search --args '{"query":"An
 cp .env.example .env
 ```
 
-其中 `EXA_BASE_URL` 与 `TAVILY_BASE_URL` 是可选项，只填写根路径即可；未设置时会继续使用默认官方地址。
+其中所有 `*_BASE_URL` 与 `GEMINI_MODEL` 都是可选项，只填写根路径即可；未设置时会继续使用默认官方地址。未配置某 Provider 的 API Key 时，该 Provider 会被自动跳过。
+
+### Provider 凭据
 
 | 变量 | 说明 |
 |------|------|
-| `TAVILY_API_KEY` | Tavily 搜索 / 抓取 |
+| `TAVILY_API_KEY` | Tavily 搜索 |
 | `TAVILY_BASE_URL` | Tavily API 根路径，可选，例如 `https://api.tavily.com` |
-| `EXA_API_KEY` | Exa 搜索 / 抓取 |
+| `EXA_API_KEY` | Exa 搜索 |
 | `EXA_BASE_URL` | Exa API 根路径，可选，例如 `https://api.exa.ai` |
+| `BRAVE_API_KEY` | Brave 搜索 |
+| `BRAVE_BASE_URL` | Brave API 根路径，可选，例如 `https://api.search.brave.com` |
+| `JINA_API_KEY` | Jina 搜索 |
+| `JINA_BASE_URL` | Jina API 根路径，可选，例如 `https://s.jina.ai` |
+| `FIRECRAWL_API_KEY` | Firecrawl 搜索 |
+| `FIRECRAWL_BASE_URL` | Firecrawl API 根路径，可选，例如 `https://api.firecrawl.dev` |
 | `GEMINI_API_KEY` | Gemini AI 搜索 |
-| `JINA_API_KEY` | Jina Reader 抓取 |
-| `FIRECRAWL_API_KEY` | Firecrawl 抓取 |
-| `SEARXNG_BASE_URL` | SearXNG 自托管地址 |
+| `GEMINI_BASE_URL` | Gemini API 根路径，可选 |
+| `GEMINI_MODEL` | Gemini 模型名，可选，未设置时使用 SDK 默认模型 |
+| `OLLAMA_API_KEY` | Ollama 搜索 |
+| `OLLAMA_BASE_URL` | Ollama API 根路径，可选，例如 `https://ollama.com` |
+| `SEARXNG_BASE_URL` | SearXNG 自托管地址，无需 API Key |
+
+### AI 聚合（`mode=AIAggregation` 时使用）
+
+| 变量 | 说明 |
+|------|------|
+| `AI_API_KEY` | AI 聚合服务 API Key |
+| `AI_BASE_URL` | AI 聚合服务根路径，可选 |
+| `AI_MODEL` | AI 聚合模型名，可选 |
+| `AI_FORMAT` | AI 聚合输出格式，可选 |
+| `AI_TIMEOUT_MS` | AI 聚合单次超时（毫秒），默认 `10000` |
+
+### 聚合策略
+
+| 变量 | 说明 |
+|------|------|
 | `SEARCH_PROVIDER_WEIGHTS` | 搜索结果后处理的渠道权重，格式为 `provider:value`，多个值用逗号分隔，例如 `exa:1.5,gemini:0.7` |
 | `DOMAIN_BLACKLIST_URL` | 域名黑名单下载地址，可选；未设置时使用内置默认 raw URL |
 
@@ -185,7 +206,7 @@ cp .env.example .env
 MCP Client
     │
     ▼
-Tools (list / search / fetch)
+Tools (list / search)
     │
     ▼
 Aggregator（并发 + RRF 融合 + score 后处理 + 域名黑名单过滤）
