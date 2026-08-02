@@ -19,9 +19,13 @@ export class OpenAIAIClient implements AIClient {
   private readonly model: string;
 
   constructor(opts: OpenAIAIClientOptions) {
+    // OpenAI SDK 资源路径不带 /v1，baseURL 默认值自带 /v1。
+    // 用户只填到 host 时需追加 /v1，否则请求落到 /chat/completions 会 404。
+    // strip 尾部斜杠后无条件追加 /v1（不检测是否已带 /v1，由用户保证）。
+    const normalizedBaseUrl = opts.baseUrl ? `${opts.baseUrl.replace(/\/+$/, '')}/v1` : undefined;
     this.client = new OpenAI({
       apiKey: opts.apiKey,
-      ...(opts.baseUrl ? { baseURL: opts.baseUrl } : {}),
+      ...(normalizedBaseUrl ? { baseURL: normalizedBaseUrl } : {}),
     });
     this.model = opts.model ?? DEFAULT_MODEL;
   }
