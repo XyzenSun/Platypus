@@ -47,13 +47,12 @@
      - 在 `isConfigured()` 中加入配置判断
      - 在 `getSearchProviders()` 中实例化并注册
 
-6. **补测试**
-   - 至少为新 adapter 增加单测，覆盖：
+6. **验证适配器**
+   - 为新 adapter 做手工验证，覆盖：
      - 请求参数映射
      - 空 URL 行为
      - `hasContent` 分支
      - 关键字段如 language / region / date / domain filter 的编译行为
-   - 优先沿用 `tests/unit/search-adapters.test.ts` 的风格。
 
 ## 修改时的注意事项
 - `baseUrl` 拼接保持与现有 provider 一致：先去掉结尾 `/`，再补路径，避免双斜杠。

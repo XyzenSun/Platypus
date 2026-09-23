@@ -221,12 +221,10 @@ Providers（Tavily / Exa / Gemini / Jina / Firecrawl）
 
 ```bash
 npm run dev        # watch 模式
-npm run test       # 单元测试
-npm run test:e2e   # E2E 测试（需配置 API Key）
 npm run lint       # Biome 检查
 npm run typecheck  # TypeScript 类型检查
 ```
 
 ## 技术栈
 
-TypeScript · ESM · `@modelcontextprotocol/sdk` · Zod · Vitest · Biome
+TypeScript · ESM · `@modelcontextprotocol/sdk` · Zod · Biome
