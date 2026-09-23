@@ -1,10 +1,10 @@
 {
-  "name": "platypus-cli",
-  "version": "0.1.0",
+  "name": "@xyzensun/platypus",
+  "version": "0.0.2",
   "type": "module",
   "description": "Provider-native search CLI with optional AI cleanup",
   "bin": {
-    "platypus": "./dist/index.js"
+    "platypus": "dist/index.js"
   },
   "engines": {
     "node": ">=20"
@@ -12,6 +12,7 @@
   "scripts": {
     "dev": "tsup --watch",
     "build": "tsup",
+    "prepack": "npm run build",
     "lint": "biome check .",
     "format": "biome format --write .",
     "typecheck": "tsc --noEmit"
@@ -28,7 +29,7 @@
     "tsup": "^8.5.0",
     "typescript": "^5.8.0"
   },
-  "files": ["dist", "README.md"],
+  "files": ["dist", "src", "README.md", ".env.example"],
   "publishConfig": {
     "access": "public"
   }
