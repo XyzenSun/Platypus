@@ -24,13 +24,14 @@ function requireModel(getConfig: GetConfig, configPrefix: ConfigPrefix): string 
 export async function searchGemini(
   query: string,
   getConfig: GetConfig,
+  signal: AbortSignal,
   model?: string,
 ): Promise<string> {
   const client = await createGeminiClient(getConfig, 'PLATYPUS_GEMINI');
   const response = await client.models.generateContent({
     model: model ?? getConfig('PLATYPUS_GEMINI_MODEL') ?? DEFAULT_SEARCH_MODEL,
     contents: query,
-    config: { tools: [{ googleSearch: {} }] },
+    config: { tools: [{ googleSearch: {} }], abortSignal: signal },
   });
   return JSON.stringify(response);
 }
@@ -39,13 +40,14 @@ export async function cleanWithGemini(
   instruction: string,
   input: string,
   getConfig: GetConfig,
+  signal: AbortSignal,
 ): Promise<string | undefined> {
   // Google GenAI SDK 没有与其他两家一致的流式最终响应接口，暂用非流式。
   const client = await createGeminiClient(getConfig, 'PLATYPUS_AI');
   const response = await client.models.generateContent({
     model: requireModel(getConfig, 'PLATYPUS_AI'),
     contents: input,
-    config: { systemInstruction: instruction },
+    config: { systemInstruction: instruction, abortSignal: signal },
   });
   return response.text ?? undefined;
 }

@@ -17,6 +17,7 @@ export async function cleanWithOpenAI(
   input: string,
   getConfig: GetConfig,
   streamEnabled: boolean,
+  signal: AbortSignal,
 ): Promise<string | undefined> {
   const apiKey = getConfig('PLATYPUS_AI_API_KEY');
   const model = getConfig('PLATYPUS_AI_MODEL');
@@ -36,7 +37,7 @@ export async function cleanWithOpenAI(
     ],
   };
   const response = streamEnabled
-    ? await client.chat.completions.stream(request).finalChatCompletion()
-    : await client.chat.completions.create(request);
+    ? await client.chat.completions.stream(request, { signal }).finalChatCompletion()
+    : await client.chat.completions.create(request, { signal });
   return response.choices[0]?.message.content ?? undefined;
 }

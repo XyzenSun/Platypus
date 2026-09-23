@@ -4,7 +4,7 @@ import type { SearchProvider } from './types.js';
 
 export const searxng: SearchProvider = {
   help: 'platypus search searxng --query <文本> [--language en] [--engines google,bing] [--pageno 1]\n实例必须启用 JSON 输出；其余选项使用 SearXNG /search 的 URL 参数名。',
-  async run(args, getConfig) {
+  async run(args, getConfig, signal) {
     const options = parseOptions(args, 'q');
     const query = getQuery(options, 'q');
     const baseUrl = requireKey(getConfig, 'PLATYPUS_SEARXNG_BASE_URL');
@@ -18,6 +18,7 @@ export const searxng: SearchProvider = {
     }
     const rawResponse = await requestJson(url.toString(), {
       headers: { Accept: 'application/json' },
+      signal,
     });
     return { query, rawResponse };
   },

@@ -6,6 +6,7 @@ export async function cleanWithAnthropic(
   input: string,
   getConfig: GetConfig,
   streamEnabled: boolean,
+  signal: AbortSignal,
 ): Promise<string> {
   const apiKey = getConfig('PLATYPUS_AI_API_KEY');
   const model = getConfig('PLATYPUS_AI_MODEL');
@@ -25,8 +26,8 @@ export async function cleanWithAnthropic(
     messages: [{ role: 'user' as const, content: input }],
   };
   const response = streamEnabled
-    ? await client.messages.stream(request).finalMessage()
-    : await client.messages.create(request);
+    ? await client.messages.stream(request, { signal }).finalMessage()
+    : await client.messages.create(request, { signal });
   return response.content
     .filter((block) => block.type === 'text')
     .map((block) => block.text)

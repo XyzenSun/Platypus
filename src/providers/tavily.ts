@@ -4,7 +4,7 @@ import type { SearchProvider } from './types.js';
 
 export const tavily: SearchProvider = {
   help: 'platypus search tavily --query <文本> [--max_results 5] [--search_depth advanced] [--include_domains \'["example.com"]\']\n其他选项以 Tavily /search 的 JSON 字段名传入, 数组和对象使用 JSON 字符串。',
-  async run(args, getConfig) {
+  async run(args, getConfig, signal) {
     const body = parseOptions(args);
     const query = getQuery(body);
     const rawResponse = await requestJson(
@@ -16,6 +16,7 @@ export const tavily: SearchProvider = {
           Authorization: `Bearer ${requireKey(getConfig, 'PLATYPUS_TAVILY_API_KEY')}`,
         },
         body: JSON.stringify(body),
+        signal,
       },
     );
     return { query, rawResponse };

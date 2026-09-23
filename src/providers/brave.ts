@@ -4,7 +4,7 @@ import type { SearchProvider } from './types.js';
 
 export const brave: SearchProvider = {
   help: 'platypus search brave --query <文本> [--count 5] [--country US] [--search_lang en]\n其余选项使用 Brave Web Search 的 URL 参数名。',
-  async run(args, getConfig) {
+  async run(args, getConfig, signal) {
     const options = parseOptions(args, 'q');
     const query = getQuery(options, 'q');
     const baseUrl = getConfig('PLATYPUS_BRAVE_BASE_URL') ?? 'https://api.search.brave.com';
@@ -17,6 +17,7 @@ export const brave: SearchProvider = {
         Accept: 'application/json',
         'X-Subscription-Token': requireKey(getConfig, 'PLATYPUS_BRAVE_API_KEY'),
       },
+      signal,
     });
     return { query, rawResponse };
   },

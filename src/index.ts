@@ -28,11 +28,13 @@ const requiredProviderConfig: Record<keyof typeof providers, string> = {
   searxng: 'PLATYPUS_SEARXNG_BASE_URL',
   tavily: 'PLATYPUS_TAVILY_API_KEY',
 };
-const help = `用法: platypus [--env <路径>] [--ai] [--prompt <文本>] search <provider> [provider 参数]\n       platypus [--env <路径>] list\nProvider: ${Object.keys(providers).join(', ')}\nlist 仅列出已配置 Provider，不检查上游连通性。\n查询选项: platypus search <provider> --help`;
+const help = `用法: platypus [--env <路径>] [--ai] [--prompt <文本>] [--ai-timeout <秒>] [--provider-timeout <秒>] search <provider> [provider 参数]\n       platypus [--env <路径>] list\nProvider: ${Object.keys(providers).join(', ')}\nlist 仅列出已配置 Provider，不检查上游连通性。\n查询选项: platypus search <provider> --help`;
 
 interface WrapperOptions {
   ai: boolean;
   prompt?: string;
+  aiTimeout?: string;
+  providerTimeout?: string;
   envPath?: string;
   list: boolean;
   provider?: string;
@@ -42,6 +44,8 @@ interface WrapperOptions {
 function parseWrapper(args: string[]): WrapperOptions {
   let ai = false;
   let prompt: string | undefined;
+  let aiTimeout: string | undefined;
+  let providerTimeout: string | undefined;
   let envPath: string | undefined;
   let index = 0;
   while (index < args.length && args[index] !== 'search' && args[index] !== 'list') {
@@ -49,17 +53,30 @@ function parseWrapper(args: string[]): WrapperOptions {
     if (option === '--help' && index === args.length) return { ai, list: false, providerArgs: [] };
     if (option === '--ai') {
       ai = true;
-    } else if (option === '--prompt' || option === '--env') {
+    } else if (
+      option === '--prompt' ||
+      option === '--env' ||
+      option === '--ai-timeout' ||
+      option === '--provider-timeout'
+    ) {
       const value = args[index++];
       if (!value || value.startsWith('--')) throw new Error(`缺少选项值: ${option}`);
       if (option === '--prompt') prompt = value;
+      else if (option === '--ai-timeout') aiTimeout = value;
+      else if (option === '--provider-timeout') providerTimeout = value;
       else envPath = value;
     } else {
       throw new Error(`未知包装器选项: ${option}`);
     }
   }
   if (args[index] === 'list') {
-    if (args.length !== index + 1 || ai || prompt !== undefined) {
+    if (
+      args.length !== index + 1 ||
+      ai ||
+      prompt !== undefined ||
+      aiTimeout !== undefined ||
+      providerTimeout !== undefined
+    ) {
       throw new Error('list 仅支持 --env <路径>');
     }
     return { ai: false, list: true, envPath, providerArgs: [] };
@@ -68,7 +85,17 @@ function parseWrapper(args: string[]): WrapperOptions {
   const provider = args[index + 1];
   if (!provider) throw new Error('缺少 Provider 名称');
   if (prompt !== undefined && !ai) throw new Error('--prompt 需要同时启用 --ai');
-  return { ai, list: false, prompt, envPath, provider, providerArgs: args.slice(index + 2) };
+  if (aiTimeout !== undefined && !ai) throw new Error('--ai-timeout 需要同时启用 --ai');
+  return {
+    ai,
+    list: false,
+    prompt,
+    aiTimeout,
+    providerTimeout,
+    envPath,
+    provider,
+    providerArgs: args.slice(index + 2),
+  };
 }
 
 async function main(): Promise<void> {
@@ -93,13 +120,44 @@ async function main(): Promise<void> {
     return;
   }
   const getConfig = await loadConfig(options.envPath);
-  const { query, rawResponse } = await adapter.run(options.providerArgs, getConfig);
+  const providerTimeoutSeconds = options.providerTimeout ?? '30';
+  if (
+    !/^\d+$/u.test(providerTimeoutSeconds) ||
+    !Number.isSafeInteger(Number(providerTimeoutSeconds)) ||
+    Number(providerTimeoutSeconds) < 1 ||
+    Number(providerTimeoutSeconds) * 1000 > 2_147_483_647
+  ) {
+    throw new Error('--provider-timeout 必须为正整数秒且不超过计时器上限');
+  }
+  const timeoutMilliseconds = Number(providerTimeoutSeconds) * 1000;
+  const controller = new AbortController();
+  // 单次搜索使用同一个取消信号，超时后中止上游请求与响应读取，不影响后续 AI 清洗。
+  const timer = setTimeout(() => controller.abort(), timeoutMilliseconds);
+  let result: Awaited<ReturnType<typeof adapter.run>>;
+  try {
+    result = await adapter.run(options.providerArgs, getConfig, controller.signal);
+    if (controller.signal.aborted) throw new Error('上游调用在超时后返回');
+  } catch (error) {
+    if (controller.signal.aborted) {
+      throw new Error(`上游调用超时 (${providerTimeoutSeconds} 秒)`, { cause: error });
+    }
+    throw error;
+  } finally {
+    clearTimeout(timer);
+  }
+  const { query, rawResponse } = result;
   if (!options.ai) {
     process.stdout.write(rawResponse);
     return;
   }
   try {
-    const text = await cleanResponse(query, rawResponse, options.prompt, getConfig);
+    const text = await cleanResponse(
+      query,
+      rawResponse,
+      options.prompt,
+      getConfig,
+      options.aiTimeout,
+    );
     process.stdout.write(`${text}\n`);
   } catch (error) {
     const path = await saveAIFailure(options.provider, error, rawResponse);

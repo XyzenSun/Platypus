@@ -4,6 +4,10 @@ export interface ProviderResponse {
 }
 
 export interface SearchProvider {
-  run(args: string[], getConfig: (name: string) => string | undefined): Promise<ProviderResponse>;
+  run(
+    args: string[],
+    getConfig: (name: string) => string | undefined,
+    signal: AbortSignal,
+  ): Promise<ProviderResponse>;
   help: string;
 }

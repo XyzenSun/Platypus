@@ -4,7 +4,7 @@ import type { SearchProvider } from './types.js';
 
 export const jina: SearchProvider = {
   help: 'platypus search jina --query <文本> [--num 5] [--type web] [--gl US]\n其他选项以 Jina /search 的 query 参数名传入, --query 映射为 q。',
-  async run(args, getConfig) {
+  async run(args, getConfig, signal) {
     const options = parseOptions(args, 'q');
     const query = getQuery(options, 'q');
     const url = new URL(endpoint(getConfig('PLATYPUS_JINA_BASE_URL'), 'https://s.jina.ai'));
@@ -16,6 +16,7 @@ export const jina: SearchProvider = {
         Accept: 'application/json',
         Authorization: `Bearer ${requireKey(getConfig, 'PLATYPUS_JINA_API_KEY')}`,
       },
+      signal,
     });
     return { query, rawResponse };
   },

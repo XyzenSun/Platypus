@@ -3,7 +3,7 @@ import type { SearchProvider } from './types.js';
 
 export const gemini: SearchProvider = {
   help: 'platypus search gemini --query <文本> [--model gemini-flash-lite-latest]\n--query 映射为 Gemini contents；搜索使用 Google Search grounding，返回 Gemini 原始响应 JSON。',
-  async run(args, getConfig) {
+  async run(args, getConfig, signal) {
     const options = parseOptions(args);
     const query = getQuery(options);
     if (Object.keys(options).some((option) => option !== 'query' && option !== 'model')) {
@@ -16,7 +16,7 @@ export const gemini: SearchProvider = {
     const { searchGemini } = await import('../ai/client/gemini.js');
     return {
       query,
-      rawResponse: await searchGemini(query, getConfig, model as string | undefined),
+      rawResponse: await searchGemini(query, getConfig, signal, model as string | undefined),
     };
   },
 };

@@ -4,7 +4,7 @@ import type { SearchProvider } from './types.js';
 
 export const ollama: SearchProvider = {
   help: 'platypus search ollama --query <文本> [--max_results 5]\n参数使用 Ollama Web Search 的 JSON 字段名。',
-  async run(args, getConfig) {
+  async run(args, getConfig, signal) {
     const body = parseOptions(args);
     const query = getQuery(body);
     const baseUrl = getConfig('PLATYPUS_OLLAMA_BASE_URL') ?? 'https://ollama.com';
@@ -15,6 +15,7 @@ export const ollama: SearchProvider = {
         Authorization: `Bearer ${requireKey(getConfig, 'PLATYPUS_OLLAMA_API_KEY')}`,
       },
       body: JSON.stringify(body),
+      signal,
     });
     return { query, rawResponse };
   },

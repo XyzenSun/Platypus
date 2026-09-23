@@ -4,7 +4,7 @@ import type { SearchProvider } from './types.js';
 
 export const exa: SearchProvider = {
   help: 'platypus search exa --query <文本> [--numResults 10] [--type auto] [--contents \'{"text":true}\']\n其他选项以 Exa /search 的 JSON 字段名传入, 数组和对象使用 JSON 字符串。',
-  async run(args, getConfig) {
+  async run(args, getConfig, signal) {
     const body = parseOptions(args);
     const query = getQuery(body);
     const rawResponse = await requestJson(
@@ -16,6 +16,7 @@ export const exa: SearchProvider = {
           'x-api-key': requireKey(getConfig, 'PLATYPUS_EXA_API_KEY'),
         },
         body: JSON.stringify(body),
+        signal,
       },
     );
     return { query, rawResponse };

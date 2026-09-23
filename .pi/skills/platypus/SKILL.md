@@ -30,7 +30,7 @@ platypus 将多个网络搜索服务封装，并提供AI清洗结果功能。
 ## platypus 用法
 
 ```bash
-platypus [--env <文件>] [--ai] [--prompt <要求>] search <provider> --query "关键词" [提供商参数]
+platypus [--env <文件>] [--ai] [--prompt <要求>] [--ai-timeout <秒>] [--provider-timeout <秒>] search <provider> --query "关键词" [提供商参数]
 ```
 
 `--ai` 选项必须放在 `search` 前；`<provider>` 后的参数由该提供商处理。
@@ -38,6 +38,9 @@ platypus [--env <文件>] [--ai] [--prompt <要求>] search <provider> --query "
 - `--env <文件>`：如果本 skill 所在目录有 `.env`，由 skill 显式传入该文件路径；否则省略。指定文件内的变量优先，缺少时回退系统环境变量。CLI 不会自动寻找 `.env`。
 - `--ai`：将上游原始响应交给 AI 清洗，成功后输出纯文本；不启用时输出上游原始 JSON。需要配置 `PLATYPUS_AI_FORMAT`、`PLATYPUS_AI_API_KEY`、`PLATYPUS_AI_MODEL`。如果已配置，推荐使用。
 - `--prompt <要求>`：仅与 `--ai` 同用，替换默认清洗要求；AI 同时接收搜索词与原始响应。
+- `--ai-timeout <秒>`：仅与 `--ai` 同用，单次 AI 清洗调用 (含 SDK 重试) 的超时，默认 120 秒；优先级为 CLI 参数 > `--env` 文件中的 `PLATYPUS_AI_TIMEOUT` > 系统环境变量。不包含上游搜索耗时。
+- `--provider-timeout <秒>`：单次上游 Provider API 调用 (含响应正文读取) 的超时，默认 30 秒；只通过 CLI 指定，不读取 `.env` 或系统环境变量，超时后取消调用，不重试。与 AI 清洗分别计时。
+
 - `--query "关键词"`：搜索词；其余参数使用选定提供商的字段名，不假定跨平台通用。
 
 ### 按搜索需求选择提供商与搜索原则
