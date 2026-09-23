@@ -1,6 +1,6 @@
 # Platypus CLI
 
-Platypus 是按 Provider 独立调用的搜索 CLI，可选用 AI 清洗结果。本仓库正在迁移为 npm 包 `platypus-cli`；旧版已发布的 `@xyzensun/platypus-mcp` 仍是不同的 MCP 产品，新的 CLI 尚未发布到 npm。
+Platypus 是按 Provider 独立调用的搜索 CLI，可选用 AI 清洗结果。Platypus 已以 `@xyzensun/platypus` 发布到 npm。本仓库准备发布 `0.0.2`；旧版 `@xyzensun/platypus-mcp` 是不同的 MCP 产品。
 
 ## 本地使用
 
@@ -14,9 +14,9 @@ node dist/index.js --ai search tavily --query "Node.js" --max_results 5
 node dist/index.js --ai --prompt "只保留关键事实和来源链接" search jina --query "Node.js" --num 5
 ```
 
-构建后也可通过 `npm link` 在本机使用 `platypus` 命令。发布 `platypus-cli` 后，用户可通过 `npm install -g platypus-cli` 安装并直接运行 `platypus search exa ...`。仓库构建成功不等于 npm 已发布。
+用户可通过 `npm install -g @xyzensun/platypus` 安装并运行 `platypus search exa ...`；本地构建后也可通过 `npm link` 使用 `platypus`。打包前通过 `prepack` 构建；npm 包包含 `dist/`、`src/`、`README.md` 和 `.env.example`，不附带项目 skill 或凭据。
 
-`platypus [--env <文件>] [--ai] [--prompt <文本>] search <provider> ...` 的包装器只识别 `search` 之前的选项及 Provider 名称，Provider 后面的选项完全交给对应 adapter。现支持 `exa`、`tavily`、`jina`、`brave`、`firecrawl`、`gemini`、`ollama`、`searxng`；使用 `platypus --help` 和 `platypus search <provider> --help` 查看分层帮助。`platypus [--env <文件>] list` 只输出已配置所需 key（SearXNG 为实例地址）的 Provider 名称 JSON 数组，不访问上游，不保证实时可连通；这与源码支持的完整列表不同。普通搜索只统一 `--query` 名称，其余选项使用上游 API 的字段名：Exa 如 `--numResults`、`--contents '{"text":true}'`；Tavily 如 `--max_results`、`--include_domains '["example.com"]'`；Jina 如 `--num`、`--type`；Brave 如 `--count`；Firecrawl 如 `--limit`；Ollama 如 `--max_results`；SearXNG 如 `--engines`。数组与对象选项请传入 JSON 字符串；不同厂商的参数不做跨平台语义转换。Gemini Grounding 使用 `--query` 映射模型的 `contents`，由模型自行搜索并返回原始 Gemini 响应，不等同于普通网页搜索结果列表。搜索模型可用 `--model` 指定，未指定时使用 `PLATYPUS_GEMINI_MODEL`，再回退到 `gemini-flash-lite-latest`。Gemini 搜索与 Gemini AI 清洗共用 `src/ai/client/gemini.ts`，仅在需要对应协议时加载 SDK；其他 Provider 的普通搜索不会加载 AI SDK。
+`platypus [--env <文件>] [--ai] [--prompt <文本>] search <provider> ...` 的包装器只识别 `search` 之前的选项及 Provider 名称，Provider 后面的选项完全交给对应 adapter。现支持 `exa`、`tavily`、`jina`、`brave`、`gemini`、`ollama`、`searxng`；使用 `platypus --help` 和 `platypus search <provider> --help` 查看分层帮助。`platypus [--env <文件>] list` 只输出已配置所需 key（SearXNG 为实例地址）的 Provider 名称 JSON 数组，不访问上游，不保证实时可连通；这与源码支持的完整列表不同。普通搜索只统一 `--query` 名称，其余选项使用上游 API 的字段名：Exa 如 `--numResults`、`--contents '{"text":true}'`；Tavily 如 `--max_results`、`--include_domains '["example.com"]'`；Jina 如 `--num`、`--type`；Brave 如 `--count`；Ollama 如 `--max_results`；SearXNG 如 `--engines`。数组与对象选项请传入 JSON 字符串；不同厂商的参数不做跨平台语义转换。Gemini Grounding 使用 `--query` 映射模型的 `contents`，由模型自行搜索并返回原始 Gemini 响应，不等同于普通网页搜索结果列表。搜索模型可用 `--model` 指定，未指定时使用 `PLATYPUS_GEMINI_MODEL`，再回退到 `gemini-flash-lite-latest`。Gemini 搜索与 Gemini AI 清洗共用 `src/ai/client/gemini.ts`，仅在需要对应协议时加载 SDK；其他 Provider 的普通搜索不会加载 AI SDK。
 
 ## 输出
 
@@ -33,7 +33,6 @@ PLATYPUS_EXA_API_KEY
 PLATYPUS_TAVILY_API_KEY
 PLATYPUS_JINA_API_KEY
 PLATYPUS_BRAVE_API_KEY
-PLATYPUS_FIRECRAWL_API_KEY
 PLATYPUS_GEMINI_API_KEY
 PLATYPUS_GEMINI_MODEL
 PLATYPUS_OLLAMA_API_KEY
@@ -46,6 +45,6 @@ PLATYPUS_AI_STREAMBLE=true（可选，只有 true 且格式为 OpenAI 或 Anthro
 PLATYPUS_AI_MAX_TOKENS=8192（可选，Anthropic 输出 token 上限，按模型能力调整）
 ```
 
-Brave、Firecrawl、Ollama 可选 `PLATYPUS_<PROVIDER>_BASE_URL`，填写服务根地址；Gemini 可选 `PLATYPUS_GEMINI_BASE_URL`，作为 SDK 的 `httpOptions.baseUrl`；Exa、Tavily、Jina 的根地址会追加 `/search`。示例见 [`.env.example`](.env.example)。不要提交含真实密钥的文件。
+Brave、Ollama 可选 `PLATYPUS_<PROVIDER>_BASE_URL`，填写服务根地址；Gemini 可选 `PLATYPUS_GEMINI_BASE_URL`，作为 SDK 的 `httpOptions.baseUrl`；Exa、Tavily、Jina 的根地址会追加 `/search`。示例见 [`.env.example`](.env.example)。不要提交含真实密钥的文件。
 
-开发检查：`npm run typecheck`、`npm run build`、`npm run lint`。后续计划见 [`TODO.md`](TODO.md)，Provider 的本地 API 资料见 `doc/UpstreanAPIFormat/`。
+开发检查：`npm run typecheck`、`npm run build`、`npm run lint`。

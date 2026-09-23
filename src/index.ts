@@ -3,7 +3,6 @@ import { saveAIFailure } from './ai/failure.js';
 import { loadConfig } from './config.js';
 import { brave } from './providers/brave.js';
 import { exa } from './providers/exa.js';
-import { firecrawl } from './providers/firecrawl.js';
 import { gemini } from './providers/gemini.js';
 import { jina } from './providers/jina.js';
 import { ollama } from './providers/ollama.js';
@@ -14,7 +13,6 @@ import type { SearchProvider } from './providers/types.js';
 const providers: Record<string, SearchProvider> = {
   brave,
   exa,
-  firecrawl,
   gemini,
   jina,
   ollama,
@@ -24,7 +22,6 @@ const providers: Record<string, SearchProvider> = {
 const requiredProviderConfig: Record<keyof typeof providers, string> = {
   brave: 'PLATYPUS_BRAVE_API_KEY',
   exa: 'PLATYPUS_EXA_API_KEY',
-  firecrawl: 'PLATYPUS_FIRECRAWL_API_KEY',
   gemini: 'PLATYPUS_GEMINI_API_KEY',
   jina: 'PLATYPUS_JINA_API_KEY',
   ollama: 'PLATYPUS_OLLAMA_API_KEY',
