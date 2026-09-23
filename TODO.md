@@ -2,10 +2,14 @@
 
 ## CLI 重构
 
-- [ ] 将 MCP 入口迁移为 `platypus-cli` 包的 `platypus` 命令，首批支持 Exa、Tavily、Jina 的独立 adapter；普通搜索仅统一 `query` 名称，其余参数及响应保持各家 API 语义。
-- [ ] 保留可选 AI 清洗能力，包装器不解析 Provider 后续参数；实现前确认输出格式及失败回退行为。
-- [ ] 保留域名黑白名单机制：迁移现有黑名单能力，并在实现前确认白名单规则及其与 Provider 原始响应的处理方式。目前白名单尚未实现。
-- [ ] 更新 README、构建与安装说明，验证安装后可以运行 `platypus exa search ...`。
+- [x] 删除旧 MCP 的 `src/` 实现；保留 `doc/`，新 CLI 从零实现。
+- [x] 建立 `platypus-cli` 包的 `platypus search <provider>` 命令，首批实现 Exa、Tavily、Jina 的独立 adapter；普通搜索仅统一 `query` 名称，其余参数及响应保持各家 API 语义。
+- [x] 从零实现 OpenAI/Anthropic AI 清洗、`--prompt`、可选 SDK 流式完整响应聚合和毫秒时间戳诊断文件；包装器不解析 Provider 后续参数。
+- [ ] 从零实现域名黑白名单能力；旧黑名单代码和示例数据已随 `src/` 删除。实现前确认名单来源、白名单规则及其与 Provider 原始响应的处理方式。
+- [x] 完成 typecheck、构建、lint、CLI 帮助与缺少 key 的定向验证，并验证本地安装后的 `platypus` 可执行入口。
+- [x] 使用真实凭据验证 Exa 与 Tavily 原始 JSON 搜索，以及 Tavily 搜索接 OpenAI 和 Anthropic 协议的非流式、SDK 流式完整响应聚合及 AI 纯文本清洗；OpenAI 的 host 地址自动补 `/v1`。
+- [ ] 使用真实 Jina 凭据验证搜索；目前没有 Jina 测试 key，不用 mock 代替。
+- [ ] 发布到 npm 后验证全局安装的 `platypus search exa ...`。
 
 ## 旧聚合方案遗留事项（不直接用于 CLI，待重评估）
 

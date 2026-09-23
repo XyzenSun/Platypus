@@ -1,230 +1,45 @@
-# Platypus
+# Platypus CLI
 
-聚合搜索 MCP 服务器，为 AI Agent 提供统一的搜索能力。
+Platypus 是按 Provider 独立调用的搜索 CLI，可选用 AI 清洗结果。本仓库正在迁移为 npm 包 `platypus-cli`；旧版已发布的 `@xyzensun/platypus-mcp` 仍是不同的 MCP 产品，新的 CLI 尚未发布到 npm。
 
-## 功能
+## 本地使用
 
-提供 2 个 MCP 工具：
-
-| 工具 | 说明 |
-|------|------|
-| `list` | 列出当前可用的 Provider |
-| `search` | 并发调用多个搜索引擎，先做 RRF 融合，再做统一的 score 后处理与域名黑名单过滤 |
-
-## 支持的 Provider
-
-| Provider |
-|---------|
-| Tavily、Exa、Brave、Jina、SearXNG、Firecrawl、Gemini AI |
-
-## 快速开始（推荐：npm 包）
-
-无需 clone 仓库，直接通过 npm 拉取已发布的版本：
-
-[![npm version](https://img.shields.io/npm/v/@xyzensun/platypus-mcp.svg)](https://www.npmjs.com/package/@xyzensun/platypus-mcp)
-
-### 在 MCP 客户端中配置
-
-在你的 MCP 客户端配置文件（如 Claude Desktop 的 `claude_desktop_config.json`、Cursor 的 MCP 设置）中加入：
-
-```json
-{
-  "mcpServers": {
-    "platypus": {
-      "command": "npx",
-      "args": ["-y", "@xyzensun/platypus-mcp"],
-      "env": {
-        "TAVILY_API_KEY": "your-tavily-key",
-        "EXA_API_KEY": "your-exa-key",
-        "GEMINI_API_KEY": "your-gemini-key"
-      }
-    }
-  }
-}
-```
-
-按需填写所需 Provider 的 API Key，未配置的 Provider 会自动跳过。完整环境变量见下文 [环境变量](#环境变量)。
-
-### 直接通过 npx 运行
-
-也可以在终端直接启动 stdio server：
+需要 Node.js >=20。在仓库中安装依赖、构建并运行：
 
 ```bash
-npx -y @xyzensun/platypus-mcp
-```
-
-或全局安装后调用 `platypus-mcp` 命令：
-
-```bash
-npm install -g @xyzensun/platypus-mcp
-platypus-mcp
-```
-
-### 通过 mcp-cli 调试 npm 包
-
-```bash
-npx @wong2/mcp-cli --pass-env npx -y @xyzensun/platypus-mcp
-```
-
----
-
-## 从源码构建（开发者路径）
-
-```bash
-npm install
+npm ci
 npm run build
+node dist/index.js search exa --query "Node.js" --numResults 5
+node dist/index.js --ai search tavily --query "Node.js" --max_results 5
+node dist/index.js --ai --prompt "只保留关键事实和来源链接" search jina --query "Node.js" --num 5
 ```
 
-通过 stdio 与 MCP 客户端连接：
+构建后也可通过 `npm link` 在本机使用 `platypus` 命令。发布 `platypus-cli` 后，用户可通过 `npm install -g platypus-cli` 安装并直接运行 `platypus search exa ...`。仓库构建成功不等于 npm 已发布。
 
-```bash
-node dist/index.js
+`platypus [--env <文件>] [--ai] [--prompt <文本>] search <provider> ...` 的包装器只识别 `search` 之前的选项及 Provider 名称，Provider 后面的选项完全交给对应 adapter。首批支持 `exa`、`tavily`、`jina`；使用 `platypus --help` 和 `platypus search exa --help` 查看分层帮助。普通搜索只统一 `--query` 名称，其余选项使用上游 API 的字段名：Exa 如 `--numResults`、`--contents '{"text":true}'`；Tavily 如 `--max_results`、`--include_domains '["example.com"]'`；Jina 如 `--num`、`--type`。数组与对象选项请传入 JSON 字符串；不同厂商的参数不做跨平台语义转换。
+
+## 输出
+
+不加 `--ai` 时 stdout 输出上游返回的原始 JSON 文本，不统一响应结构。加 `--ai` 后 stdout 只输出 AI 清洗后的纯文本；`--prompt` 替换默认清洗要求，系统提示和 user prompt 都会包含该要求，搜索词和原始响应一起发送给 AI。AI 支持 OpenAI Chat Completions 和 Anthropic Messages 协议。默认非流式；`PLATYPUS_AI_STREAMBLE=true` 时使用对应官方 SDK 的流式接口，等待 SDK 聚合完整响应后再输出正文，不逐块打印。
+
+上游 HTTP 状态不是 200 时，stderr 输出状态及响应，退出码为 1，且不调用 AI。AI 失败时，把错误原因与完整原始上游响应写入权限受限的 `/tmp/platypus-error-<provider>-<YYYYMMDDHHmmssSSS>.json`（本地时间，精确到毫秒），stdout 仅输出 `AI处理失败，原始响应与AI错误原因见<文件路径>`，退出码为 1。黑白名单尚未实现。
+
+## 配置
+
+CLI 的 `--env <文件>` 必须写在 `search` 之前；不指定时仅使用系统环境变量。指定文件中的变量优先，同名变量不存在时才回退系统环境变量。不自动读取工作目录或可执行文件附近的 `.env`。变量名统一带 `PLATYPUS_` 前缀：
+
+```text
+PLATYPUS_EXA_API_KEY
+PLATYPUS_TAVILY_API_KEY
+PLATYPUS_JINA_API_KEY
+PLATYPUS_AI_FORMAT=openai 或 anthropic
+PLATYPUS_AI_API_KEY
+PLATYPUS_AI_MODEL
+PLATYPUS_AI_BASE_URL（可选；OpenAI 可填 host 或以 /v1 结尾的地址，CLI 将末段路径替换为 /v1；Anthropic 地址原样交给 SDK）
+PLATYPUS_AI_STREAMBLE=true（可选，只有 true 启用流式，默认非流式）
+PLATYPUS_AI_MAX_TOKENS=8192（可选，Anthropic 输出 token 上限，按模型能力调整）
 ```
 
-## 通过 mcp-cli 使用（源码方式）
+各 Provider 可选 `PLATYPUS_<PROVIDER>_BASE_URL`；填写域名根地址，CLI 会追加 `/search`。示例见 [`.env.example`](.env.example)。不要提交含真实密钥的文件。
 
-如果你想用 `mcp-cli` 在本地交互式调试或以脚本方式调用本 MCP 服务，建议先将本项目 clone 到本地并完成构建。
-
-### 交互式连接本地 stdio MCP server
-
-```bash
-git clone <repo-url>
-cd Platypus
-npm install
-npm run build
-npx @wong2/mcp-cli node dist/index.js
-```
-
-如果服务依赖当前 shell 中的环境变量，可以改用：
-
-```bash
-npx @wong2/mcp-cli --pass-env node dist/index.js
-```
-
-### 非交互式调用本地 stdio MCP server
-
-先在项目根目录创建一个最小 `config.json`：
-
-```json
-{
-  "mcpServers": {
-    "platypus": {
-      "command": "node",
-      "args": ["dist/index.js"]
-    }
-  }
-}
-```
-
-然后使用 `call-tool` 调用本项目真实工具名。例如调用 `list`：
-
-```bash
-git clone <repo-url>
-cd Platypus
-npm install
-npm run build
-npx @wong2/mcp-cli -c config.json call-tool platypus:list
-```
-
-调用 `search` 并传入参数：
-
-```bash
-npx @wong2/mcp-cli -c config.json call-tool platypus:search --args '{"query":"Anthropic MCP","limit":5}'
-```
-
-## 环境变量
-
-复制 `.env.example` 并按需填写 API Key：
-
-```bash
-cp .env.example .env
-```
-
-其中所有 `*_BASE_URL` 与 `GEMINI_MODEL` 都是可选项，只填写根路径即可；未设置时会继续使用默认官方地址。未配置某 Provider 的 API Key 时，该 Provider 会被自动跳过。
-
-### Provider 凭据
-
-| 变量 | 说明 |
-|------|------|
-| `TAVILY_API_KEY` | Tavily 搜索 |
-| `TAVILY_BASE_URL` | Tavily API 根路径，可选，例如 `https://api.tavily.com` |
-| `EXA_API_KEY` | Exa 搜索 |
-| `EXA_BASE_URL` | Exa API 根路径，可选，例如 `https://api.exa.ai` |
-| `BRAVE_API_KEY` | Brave 搜索 |
-| `BRAVE_BASE_URL` | Brave API 根路径，可选，例如 `https://api.search.brave.com` |
-| `JINA_API_KEY` | Jina 搜索 |
-| `JINA_BASE_URL` | Jina API 根路径，可选，例如 `https://s.jina.ai` |
-| `FIRECRAWL_API_KEY` | Firecrawl 搜索 |
-| `FIRECRAWL_BASE_URL` | Firecrawl API 根路径，可选，例如 `https://api.firecrawl.dev` |
-| `GEMINI_API_KEY` | Gemini AI 搜索 |
-| `GEMINI_BASE_URL` | Gemini API 根路径，可选 |
-| `GEMINI_MODEL` | Gemini 模型名，可选，未设置时使用 SDK 默认模型 |
-| `OLLAMA_API_KEY` | Ollama 搜索 |
-| `OLLAMA_BASE_URL` | Ollama API 根路径，可选，例如 `https://ollama.com` |
-| `SEARXNG_BASE_URL` | SearXNG 自托管地址，无需 API Key |
-
-### AI 聚合（`mode=AIAggregation` 时使用）
-
-| 变量 | 说明 |
-|------|------|
-| `AI_API_KEY` | AI 聚合服务 API Key |
-| `AI_BASE_URL` | AI 聚合服务根路径，可选 |
-| `AI_MODEL` | AI 聚合模型名，可选 |
-| `AI_FORMAT` | AI 聚合输出格式，可选 |
-| `AI_TIMEOUT_MS` | AI 聚合单次超时（毫秒），默认 `10000` |
-
-### 聚合策略
-
-| 变量 | 说明 |
-|------|------|
-| `SEARCH_PROVIDER_WEIGHTS` | 搜索结果后处理的渠道权重，格式为 `provider:value`，多个值用逗号分隔，例如 `exa:1.5,gemini:0.7` |
-| `DOMAIN_BLACKLIST_URL` | 域名黑名单下载地址，可选；未设置时使用内置默认 raw URL |
-
-## Search 排序与域名策略
-
-`search` 的排序流程：
-
-1. 先做基础 RRF 融合、URL 规范化去重和内容合并。
-2. 再做统一 post-processing，包括：
-   - 按渠道权重调整 `score`
-   - 重新排序并重算 `rank`
-   - 按域名黑名单过滤结果
-
-`SEARCH_PROVIDER_WEIGHTS` 未设置时，所有渠道默认权重为 `1`，整体排序语义保持与原先接近。
-
-域名黑名单源文件位于 `src/config/domain-blacklist.txt`，用途是维护默认黑名单列表。文件格式为纯文本：
-
-- 一行一个域名
-- 支持空行
-- 支持以 `#` 开头的注释行
-
-黑名单匹配采用父域匹配：如果黑名单中包含 `example.com`，则 `example.com`、`www.example.com` 以及更深层子域都会命中。命中后结果会直接从最终 `search` 返回中移除，不参与最终排序输出。
-
-## 架构
-
-```
-MCP Client
-    │
-    ▼
-Tools (list / search)
-    │
-    ▼
-Aggregator（并发 + RRF 融合 + score 后处理 + 域名黑名单过滤）
-    │
-    ▼
-Providers（Tavily / Exa / Gemini / Jina / Firecrawl）
-```
-
-**RRF 评分**：`score = Σ 1/(k + rank)`，k=60，URL 规范化去重，内容取最长。基础融合完成后，聚合层还会继续执行统一的 score post-processing（provider weights + domain blacklist filtering）。评分策略通过 `ScoringStrategy` 接口可插拔。
-
-## 开发
-
-```bash
-npm run dev        # watch 模式
-npm run lint       # Biome 检查
-npm run typecheck  # TypeScript 类型检查
-```
-
-## 技术栈
-
-TypeScript · ESM · `@modelcontextprotocol/sdk` · Zod · Biome
+开发检查：`npm run typecheck`、`npm run build`、`npm run lint`。后续计划见 [`TODO.md`](TODO.md)，Provider 的本地 API 资料见 `doc/UpstreanAPIFormat/`。
