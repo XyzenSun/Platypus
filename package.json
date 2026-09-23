@@ -1,6 +1,6 @@
 {
   "name": "@xyzensun/platypus",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "type": "module",
   "description": "Provider-native search CLI with optional AI cleanup",
   "bin": {
